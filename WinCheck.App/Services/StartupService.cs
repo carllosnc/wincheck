@@ -6,12 +6,17 @@ namespace WinCheck.Services;
 
 public static class StartupService
 {
+    private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string RunDisabledKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run_disabled";
+
     public static List<StartupEntry> ScanStartupEntries()
     {
         var entries = new List<StartupEntry>();
 
-        ScanRegistryKey(Registry.CurrentUser, @"Software\Microsoft\Windows\CurrentVersion\Run", "Current User", entries);
-        ScanRegistryKey(Registry.LocalMachine, @"Software\Microsoft\Windows\CurrentVersion\Run", "All Users", entries);
+        ScanRegistryKey(Registry.CurrentUser, RunKeyPath, true, "Current User", entries);
+        ScanRegistryKey(Registry.CurrentUser, RunDisabledKeyPath, false, "Current User", entries);
+        ScanRegistryKey(Registry.LocalMachine, RunKeyPath, true, "All Users", entries);
+        ScanRegistryKey(Registry.LocalMachine, RunDisabledKeyPath, false, "All Users", entries);
 
         ScanStartupFolder(
             Environment.GetFolderPath(Environment.SpecialFolder.Startup),
@@ -23,11 +28,11 @@ public static class StartupService
         return entries;
     }
 
-    private static void ScanRegistryKey(RegistryKey hive, string path, string source, List<StartupEntry> entries)
+    private static void ScanRegistryKey(RegistryKey hive, string keyPath, bool isEnabled, string source, List<StartupEntry> entries)
     {
         try
         {
-            using var key = hive.OpenSubKey(path);
+            using var key = hive.OpenSubKey(keyPath);
             if (key == null) return;
 
             foreach (var valueName in key.GetValueNames())
@@ -40,7 +45,7 @@ public static class StartupService
                     Name = valueName,
                     Command = command,
                     Source = source,
-                    IsEnabled = true,
+                    IsEnabled = isEnabled,
                     RegistrySource = hive == Registry.CurrentUser ? "HKCU" : "HKLM",
                     ValueName = valueName
                 });
@@ -67,6 +72,19 @@ public static class StartupService
                     ValueName = file
                 });
             }
+
+            foreach (var file in Directory.GetFiles(folderPath, "*.lnk.disabled"))
+            {
+                entries.Add(new StartupEntry
+                {
+                    Name = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(file)),
+                    Command = file,
+                    Source = source,
+                    IsEnabled = false,
+                    RegistrySource = "StartupFolder",
+                    ValueName = file
+                });
+            }
         }
         catch { }
     }
@@ -81,11 +99,11 @@ public static class StartupService
 
     private static bool ToggleStartupFolder(StartupEntry entry)
     {
-        var disabledPath = entry.ValueName + ".disabled";
         try
         {
             if (entry.IsEnabled)
             {
+                var disabledPath = entry.ValueName + ".disabled";
                 File.Move(entry.ValueName, disabledPath);
                 entry.ValueName = disabledPath;
             }
@@ -110,21 +128,21 @@ public static class StartupService
     private static bool ToggleRegistryEntry(StartupEntry entry)
     {
         var hive = entry.RegistrySource == "HKCU" ? Registry.CurrentUser : Registry.LocalMachine;
-        var keyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
+        var fromKey = entry.IsEnabled ? RunKeyPath : RunDisabledKeyPath;
+        var toKey = entry.IsEnabled ? RunDisabledKeyPath : RunKeyPath;
 
         try
         {
-            using var key = hive.OpenSubKey(keyPath, writable: true);
-            if (key == null) return false;
+            using var sourceKey = hive.OpenSubKey(fromKey, writable: true);
+            if (sourceKey == null) return false;
 
-            if (entry.IsEnabled)
-            {
-                key.DeleteValue(entry.ValueName);
-            }
-            else
-            {
-                key.SetValue(entry.ValueName, entry.Command);
-            }
+            var value = sourceKey.GetValue(entry.ValueName);
+            if (value == null) return false;
+
+            sourceKey.DeleteValue(entry.ValueName);
+
+            using var targetKey = hive.CreateSubKey(toKey);
+            targetKey?.SetValue(entry.ValueName, value);
 
             entry.IsEnabled = !entry.IsEnabled;
             return true;
