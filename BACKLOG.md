@@ -47,6 +47,7 @@
 |----------|------|-------------|
 | P1 | Theme toggle | Dark/Light theme switcher in status bar |
 | P1 | Minimize to tray | System tray icon, minimize to tray instead of taskbar |
+| P1 | Loading states | Overlay loading indicator with dimmed background + pulse animation. Replace small status bar ProgressRing with full-content overlay for kill, scan, and cleanup operations |
 | P2 | Keyboard shortcuts | Ctrl+K (kill), Ctrl+A (select all), Ctrl+1-4 (switch tabs) |
 | P2 | Settings persistence | Remember window size, last tab, auto-refresh preference |
 | P3 | Auto-start with Windows | Option to launch on system startup |
