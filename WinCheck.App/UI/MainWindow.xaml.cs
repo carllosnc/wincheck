@@ -589,9 +589,11 @@ public sealed partial class MainWindow : Window
         ProcessesView.Visibility = Visibility.Visible;
         InfoView.Visibility = Visibility.Collapsed;
         DiskView.Visibility = Visibility.Collapsed;
+        CleanupView.Visibility = Visibility.Collapsed;
         NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
         NavInfo.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
     }
 
     public void OnNavInfo(object sender, RoutedEventArgs e)
@@ -599,9 +601,11 @@ public sealed partial class MainWindow : Window
         ProcessesView.Visibility = Visibility.Collapsed;
         InfoView.Visibility = Visibility.Visible;
         DiskView.Visibility = Visibility.Collapsed;
+        CleanupView.Visibility = Visibility.Collapsed;
         NavInfo.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
         NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         CollectHardwareInfo();
     }
 
@@ -673,9 +677,11 @@ public sealed partial class MainWindow : Window
         ProcessesView.Visibility = Visibility.Collapsed;
         InfoView.Visibility = Visibility.Collapsed;
         DiskView.Visibility = Visibility.Visible;
+        CleanupView.Visibility = Visibility.Collapsed;
         NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
         NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavInfo.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
     }
 
     public void OnDriveChanged(object sender, SelectionChangedEventArgs e)
@@ -790,6 +796,279 @@ public sealed partial class MainWindow : Window
             2 => _currentResults.OrderByDescending(f => f.FileCount).ToList(),
             _ => _currentResults.OrderByDescending(f => f.SizeBytes).ToList()
         };
+    }
+
+    public void OnNavCleanup(object sender, RoutedEventArgs e)
+    {
+        ProcessesView.Visibility = Visibility.Collapsed;
+        InfoView.Visibility = Visibility.Collapsed;
+        DiskView.Visibility = Visibility.Collapsed;
+        CleanupView.Visibility = Visibility.Visible;
+        NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
+        NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavInfo.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+    }
+
+    private List<CleanupCategory> _cleanupCategories = [];
+    private bool _cleanupAnalyzed;
+
+    public async void OnCleanupAnalyze(object sender, RoutedEventArgs e)
+    {
+        CleanupAnalyzeBtn.IsEnabled = false;
+        CleanupRunBtn.IsEnabled = false;
+        CleanupStatus.Text = "Analyzing...";
+        _cleanupAnalyzed = false;
+
+        _cleanupCategories = BuildCleanupCategories();
+        CleanupList.ItemsSource = _cleanupCategories;
+
+        foreach (var cat in _cleanupCategories)
+        {
+            cat.Status = "Scanning...";
+            cat.SizeBytes = await Task.Run(() => CalculateCategorySize(cat));
+            cat.Status = cat.SizeBytes > 0 ? "Ready" : "Nothing to clean";
+        }
+
+        var total = _cleanupCategories.Where(c => c.SizeBytes > 0).Sum(c => c.SizeBytes);
+        CleanupStatus.Text = total > 0
+            ? $"Found {FolderInfo.FormatBytesLocal(total)} of cleanable data"
+            : "Nothing to clean";
+
+        CleanupRunBtn.IsEnabled = total > 0;
+        CleanupAnalyzeBtn.IsEnabled = true;
+        _cleanupAnalyzed = true;
+    }
+
+    public async void OnCleanupRun(object sender, RoutedEventArgs e)
+    {
+        if (!_cleanupAnalyzed) return;
+
+        CleanupAnalyzeBtn.IsEnabled = false;
+        CleanupRunBtn.IsEnabled = false;
+        var totalFreed = 0L;
+        var totalFiles = 0;
+
+        foreach (var cat in _cleanupCategories.Where(c => c.IsChecked && c.SizeBytes > 0))
+        {
+            cat.Status = "Cleaning...";
+            var (files, freed) = await Task.Run(() => CleanCategory(cat));
+            cat.FilesDeleted = files;
+            cat.BytesFreed = freed;
+            cat.Status = files > 0 ? "Cleaned" : "Skipped";
+            cat.SizeBytes = 0;
+            totalFreed += freed;
+            totalFiles += files;
+        }
+
+        CleanupStatus.Text = totalFiles > 0
+            ? $"Cleaned {totalFiles} files | {FolderInfo.FormatBytesLocal(totalFreed)} freed"
+            : "Nothing was cleaned";
+
+        CleanupAnalyzeBtn.IsEnabled = true;
+    }
+
+    private static List<CleanupCategory> BuildCleanupCategories()
+    {
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var temp = Path.GetTempPath();
+
+        return
+        [
+            new CleanupCategory
+            {
+                Name = "Windows Temp Files",
+                Description = "Temporary files in %TEMP% and Windows\\Temp",
+                Paths = [temp, @"C:\Windows\Temp"],
+                RequiresAdmin = false
+            },
+            new CleanupCategory
+            {
+                Name = "Recycle Bin",
+                Description = "Files in the recycle bin",
+                Paths = [@"C:\`$Recycle.Bin"],
+                RequiresAdmin = false
+            },
+            new CleanupCategory
+            {
+                Name = "Chrome Cache",
+                Description = "Google Chrome browser cache",
+                Paths = [Path.Combine(localAppData, @"Google\Chrome\User Data")],
+                RequiresAdmin = false
+            },
+            new CleanupCategory
+            {
+                Name = "Edge Cache",
+                Description = "Microsoft Edge browser cache",
+                Paths = [Path.Combine(localAppData, @"Microsoft\Edge\User Data")],
+                RequiresAdmin = false
+            },
+            new CleanupCategory
+            {
+                Name = "Firefox Cache",
+                Description = "Mozilla Firefox browser cache",
+                Paths = [Path.Combine(appData, @"Mozilla\Firefox\Profiles")],
+                RequiresAdmin = false
+            },
+            new CleanupCategory
+            {
+                Name = "Windows Update Cache",
+                Description = "Windows Update download cache",
+                Paths = [@"C:\Windows\SoftwareDistribution\Download"],
+                RequiresAdmin = true
+            },
+            new CleanupCategory
+            {
+                Name = "Delivery Optimization",
+                Description = "Windows Delivery Optimization files",
+                Paths = [@"C:\Windows\ServiceProfiles\NetworkService\AppData\Local\Microsoft\Windows\DeliveryOptimization\Cache"],
+                RequiresAdmin = true
+            }
+        ];
+    }
+
+    private static long CalculateCategorySize(CleanupCategory cat)
+    {
+        long total = 0;
+        foreach (var path in cat.Paths)
+        {
+            try
+            {
+                if (!Directory.Exists(path)) continue;
+
+                if (cat.Name == "Chrome Cache" || cat.Name == "Edge Cache")
+                {
+                    total += SumBrowserCache(path, "Cache");
+                }
+                else if (cat.Name == "Firefox Cache")
+                {
+                    total += SumBrowserCache(path, "cache2");
+                }
+                else
+                {
+                    var (size, _, _) = GetDirectorySize(path);
+                    total += size;
+                }
+            }
+            catch { }
+        }
+        return total;
+    }
+
+    private static (int files, long freed) CleanCategory(CleanupCategory cat)
+    {
+        int files = 0;
+        long freed = 0;
+
+        foreach (var path in cat.Paths)
+        {
+            try
+            {
+                if (!Directory.Exists(path)) continue;
+
+                if (cat.Name == "Chrome Cache" || cat.Name == "Edge Cache")
+                {
+                    (files, freed) = CleanBrowserCache(path, "Cache", files, freed);
+                }
+                else if (cat.Name == "Firefox Cache")
+                {
+                    (files, freed) = CleanBrowserCache(path, "cache2", files, freed);
+                }
+                else if (cat.Name == "Recycle Bin")
+                {
+                    EmptyRecycleBin();
+                    files += 1;
+                }
+                else
+                {
+                    var (f, b) = DeleteDirectoryContents(path);
+                    files += f;
+                    freed += b;
+                }
+            }
+            catch { }
+        }
+
+        return (files, freed);
+    }
+
+    private static long SumBrowserCache(string root, string cacheFolderName)
+    {
+        long total = 0;
+        try
+        {
+            foreach (var profile in Directory.EnumerateDirectories(root))
+            {
+                var cachePath = Path.Combine(profile, cacheFolderName);
+                if (Directory.Exists(cachePath))
+                {
+                    var (size, _, _) = GetDirectorySize(cachePath);
+                    total += size;
+                }
+            }
+        }
+        catch { }
+        return total;
+    }
+
+    private static (int files, long freed) CleanBrowserCache(string root, string cacheFolderName, int files, long freed)
+    {
+        try
+        {
+            foreach (var profile in Directory.EnumerateDirectories(root))
+            {
+                var cachePath = Path.Combine(profile, cacheFolderName);
+                if (Directory.Exists(cachePath))
+                {
+                    var (f, b) = DeleteDirectoryContents(cachePath);
+                    files += f;
+                    freed += b;
+                }
+            }
+        }
+        catch { }
+        return (files, freed);
+    }
+
+    private static (int files, long bytes) DeleteDirectoryContents(string path)
+    {
+        int files = 0;
+        long bytes = 0;
+
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+            {
+                try
+                {
+                    var fi = new FileInfo(file);
+                    bytes += fi.Length;
+                    fi.Delete();
+                    files++;
+                }
+                catch { }
+            }
+
+            foreach (var dir in Directory.EnumerateDirectories(path, "*", SearchOption.AllDirectories))
+            {
+                try { Directory.Delete(dir, true); } catch { }
+            }
+        }
+        catch { }
+
+        return (files, bytes);
+    }
+
+    [DllImport("shell32.dll")]
+    private static extern int SHEmptyRecycleBin(IntPtr hwnd, string? root, uint flags);
+
+    private static void EmptyRecycleBin()
+    {
+        const uint SHERB_NOCONFIRMATION = 0x1;
+        const uint SHERB_NOPROGRESSUI = 0x2;
+        const uint SHERB_NOSOUND = 0x4;
+        SHEmptyRecycleBin(IntPtr.Zero, null, SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND);
     }
 
     private static void ScanDirectory(string root, IProgress<FolderInfo> progress)
