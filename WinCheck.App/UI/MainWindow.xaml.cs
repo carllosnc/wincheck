@@ -813,6 +813,12 @@ public sealed partial class MainWindow : Window
     private List<CleanupCategory> _cleanupCategories = [];
     private bool _cleanupAnalyzed;
 
+    public void OnCleanupToggleDetails(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is CleanupCategory cat)
+            cat.IsExpanded = !cat.IsExpanded;
+    }
+
     public async void OnCleanupAnalyze(object sender, RoutedEventArgs e)
     {
         CleanupAnalyzeBtn.IsEnabled = false;
@@ -826,8 +832,10 @@ public sealed partial class MainWindow : Window
         foreach (var cat in _cleanupCategories)
         {
             cat.Status = "Scanning...";
-            cat.SizeBytes = await Task.Run(() => CalculateCategorySize(cat));
-            cat.Status = cat.SizeBytes > 0 ? "Ready" : "Nothing to clean";
+            var (size, details) = await Task.Run(() => CalculateCategorySize(cat));
+            cat.SizeBytes = size;
+            cat.DetailsText = details;
+            cat.Status = size > 0 ? $"{CountCategoryFiles(cat)} files found" : "Nothing to clean";
         }
 
         var total = _cleanupCategories.Where(c => c.SizeBytes > 0).Sum(c => c.SizeBytes);
@@ -928,9 +936,11 @@ public sealed partial class MainWindow : Window
         ];
     }
 
-    private static long CalculateCategorySize(CleanupCategory cat)
+    private static (long size, string details) CalculateCategorySize(CleanupCategory cat)
     {
         long total = 0;
+        var details = new List<string>();
+
         foreach (var path in cat.Paths)
         {
             try
@@ -939,21 +949,44 @@ public sealed partial class MainWindow : Window
 
                 if (cat.Name == "Chrome Cache" || cat.Name == "Edge Cache")
                 {
-                    total += SumBrowserCache(path, "Cache");
+                    foreach (var profile in Directory.EnumerateDirectories(path))
+                    {
+                        var cachePath = Path.Combine(profile, "Cache");
+                        if (Directory.Exists(cachePath))
+                        {
+                            var (size, files, _) = GetDirectorySize(cachePath);
+                            if (size > 0)
+                                details.Add($"  {cachePath}  →  {FolderInfo.FormatBytesLocal(size)}  ({files} files)");
+                            total += size;
+                        }
+                    }
                 }
                 else if (cat.Name == "Firefox Cache")
                 {
-                    total += SumBrowserCache(path, "cache2");
+                    foreach (var profile in Directory.EnumerateDirectories(path))
+                    {
+                        var cachePath = Path.Combine(profile, "cache2");
+                        if (Directory.Exists(cachePath))
+                        {
+                            var (size, files, _) = GetDirectorySize(cachePath);
+                            if (size > 0)
+                                details.Add($"  {cachePath}  →  {FolderInfo.FormatBytesLocal(size)}  ({files} files)");
+                            total += size;
+                        }
+                    }
                 }
                 else
                 {
-                    var (size, _, _) = GetDirectorySize(path);
+                    var (size, files, folders) = GetDirectorySize(path);
+                    if (size > 0)
+                        details.Add($"  {path}  →  {FolderInfo.FormatBytesLocal(size)}  ({files} files, {folders} folders)");
                     total += size;
                 }
             }
             catch { }
         }
-        return total;
+
+        return (total, details.Count > 0 ? string.Join("\n", details) : "");
     }
 
     private static (int files, long freed) CleanCategory(CleanupCategory cat)
@@ -993,23 +1026,21 @@ public sealed partial class MainWindow : Window
         return (files, freed);
     }
 
-    private static long SumBrowserCache(string root, string cacheFolderName)
+    private static int CountCategoryFiles(CleanupCategory cat)
     {
-        long total = 0;
         try
         {
-            foreach (var profile in Directory.EnumerateDirectories(root))
+            foreach (var path in cat.Paths)
             {
-                var cachePath = Path.Combine(profile, cacheFolderName);
-                if (Directory.Exists(cachePath))
+                if (Directory.Exists(path))
                 {
-                    var (size, _, _) = GetDirectorySize(cachePath);
-                    total += size;
+                    var (_, files, _) = GetDirectorySize(path);
+                    return files;
                 }
             }
         }
         catch { }
-        return total;
+        return 0;
     }
 
     private static (int files, long freed) CleanBrowserCache(string root, string cacheFolderName, int files, long freed)

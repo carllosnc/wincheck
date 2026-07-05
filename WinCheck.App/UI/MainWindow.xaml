@@ -534,30 +534,45 @@
                                                 <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
-                                            <CheckBox Grid.Row="0" Grid.RowSpan="3" Grid.Column="0"
+                                            <CheckBox Grid.Row="0" Grid.RowSpan="4" Grid.Column="0"
                                                       IsChecked="{Binding IsChecked, Mode=TwoWay}"
                                                       VerticalAlignment="Center" Margin="0,0,10,0" />
                                             <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Name}" FontSize="13"
                                                        Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                                        VerticalAlignment="Center" />
-                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Description}" FontSize="11"
-                                                       Foreground="{ThemeResource TextFillColorDisabledBrush}"
-                                                       TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
-                                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding CleanupSummary}" FontSize="11"
-                                                       Foreground="{ThemeResource AccentFillColorDefaultBrush}"
-                                                       Margin="0,2,0,0" />
-                                            <StackPanel Grid.Row="0" Grid.RowSpan="3" Grid.Column="2"
-                                                        VerticalAlignment="Center" Margin="10,0,0,0">
-                                                <TextBlock Text="{Binding SizeFormatted}" FontSize="14" FontWeight="SemiBold"
-                                                           Foreground="{ThemeResource AccentFillColorDefaultBrush}"
-                                                           HorizontalAlignment="Right" />
-                                                <TextBlock Text="{Binding Status}" FontSize="11"
+                                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Description}" FontSize="11"
+                                                           Foreground="{ThemeResource TextFillColorDisabledBrush}"
+                                                           TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+                                                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,4,0,0">
+                                                    <TextBlock Text="{Binding CleanupSummary}" FontSize="11"
+                                                               Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                                               Visibility="{Binding SummaryVisibility}" />
+                                                    <Button Content="Details" FontSize="10"
+                                                            Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                                            Background="Transparent" BorderThickness="0" Padding="0"
+                                                            Click="OnCleanupToggleDetails"
+                                                            Tag="{Binding}"
+                                                            Visibility="{Binding HasDetailsVisibility}"
+                                                            Margin="6,0,0,0" />
+                                                </StackPanel>
+                                                <TextBlock Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2"
+                                                           Text="{Binding DetailsText}" FontSize="10"
                                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                           HorizontalAlignment="Right" Margin="0,2,0,0"
-                                                           Visibility="{Binding StatusVisibility}" />
-                                            </StackPanel>
+                                                           FontFamily="Consolas"
+                                                           TextWrapping="Wrap" Margin="0,6,0,0"
+                                                           Visibility="{Binding DetailsVisibility}" />
+                                                <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="2"
+                                                            VerticalAlignment="Center" Margin="10,0,0,0">
+                                                    <TextBlock Text="{Binding SizeFormatted}" FontSize="14" FontWeight="SemiBold"
+                                                               Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                                               HorizontalAlignment="Right" />
+                                                    <TextBlock Text="{Binding Status}" FontSize="11"
+                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                               HorizontalAlignment="Right" Margin="0,2,0,0"
+                                                               Visibility="{Binding HasStatusVisibility}" />
+                                                </StackPanel>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

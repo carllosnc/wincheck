@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Microsoft.UI.Xaml;
 
 namespace WinCheck.Models;
 
@@ -12,6 +13,8 @@ public class CleanupCategory : INotifyPropertyChanged
     private string _status = "";
     private int _filesDeleted;
     private long _bytesFreed;
+    private bool _isExpanded;
+    private string _detailsText = "";
 
     public string Name { get => _name; set { _name = value; Notify(); } }
     public string Description { get => _description; set { _description = value; Notify(); } }
@@ -32,11 +35,27 @@ public class CleanupCategory : INotifyPropertyChanged
         set { _isChecked = value; Notify(); }
     }
 
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set { _isExpanded = value; Notify(); Notify(nameof(DetailsVisibility)); }
+    }
+
     public string Status
     {
         get => _status;
-        set { _status = value; Notify(); Notify(nameof(StatusVisibility)); }
+        set { _status = value; Notify(); Notify(nameof(HasStatus)); Notify(nameof(HasStatusVisibility)); }
     }
+
+    public string DetailsText
+    {
+        get => _detailsText;
+        set { _detailsText = value; Notify(); Notify(nameof(HasDetails)); }
+    }
+
+    public bool HasDetails => !string.IsNullOrEmpty(DetailsText);
+    public bool HasStatus => !string.IsNullOrEmpty(Status);
+    public Visibility DetailsVisibility => IsExpanded && HasDetails ? Visibility.Visible : Visibility.Collapsed;
 
     public int FilesDeleted
     {
@@ -54,7 +73,9 @@ public class CleanupCategory : INotifyPropertyChanged
         ? $"{FilesDeleted} files | {FolderInfo.FormatBytesLocal(BytesFreed)} freed"
         : "";
 
-    public bool StatusVisibility => !string.IsNullOrEmpty(Status);
+    public Visibility SummaryVisibility => FilesDeleted > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HasDetailsVisibility => HasDetails ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HasStatusVisibility => HasStatus ? Visibility.Visible : Visibility.Collapsed;
 
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Notify([CallerMemberName] string? prop = null)
