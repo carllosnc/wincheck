@@ -10,24 +10,7 @@ public sealed partial class MainWindow
 {
     public void OnScanStartup(object sender, RoutedEventArgs e)
     {
-        try
-        {
-            var entries = StartupService.ScanStartupEntries();
-            StartupList.ItemsSource = entries;
-        }
-        catch (Exception ex)
-        {
-            StartupList.ItemsSource = new[]
-            {
-                new StartupEntry
-                {
-                    Name = "Error loading startup entries",
-                    Command = ex.Message,
-                    Source = "Error",
-                    IsEnabled = false
-                }
-            };
-        }
+        StartupList.ItemsSource = StartupService.ScanStartupEntries();
     }
 
     public void OnToggleStartup(object sender, RoutedEventArgs e)

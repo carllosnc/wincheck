@@ -45,6 +45,7 @@ public sealed partial class MainWindow : Window
 
         CollectHardwareInfo();
         PopulateDrives();
+        StartupList.ItemsSource = StartupService.ScanStartupEntries();
     }
 
     private void OnActivated(object sender, WindowActivatedEventArgs e)
@@ -138,7 +139,8 @@ public sealed partial class MainWindow : Window
         NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         CollectHardwareInfo();
-        StartupList.ItemsSource = StartupService.ScanStartupEntries();
+        var entries = StartupService.ScanStartupEntries();
+        StartupList.ItemsSource = entries;
     }
 
     private void CollectHardwareInfo()
