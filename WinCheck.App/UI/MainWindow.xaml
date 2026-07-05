@@ -411,20 +411,24 @@
                                                     BorderThickness="0,0,0,1" Padding="0,6" Margin="0">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                                                     </Grid.ColumnDefinitions>
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
                                                     </Grid.RowDefinitions>
-                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name}"
+                                                    <Image Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+                                                           Source="{Binding IconSource}"
+                                                           Width="20" Height="20" Stretch="Uniform"
+                                                           VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Name}"
                                                                FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                                    <TextBlock Grid.Row="1" Grid.Column="0"
+                                                    <TextBlock Grid.Row="1" Grid.Column="1"
                                                                FontSize="10" Foreground="{ThemeResource TextFillColorDisabledBrush}"
                                                                TextTrimming="CharacterEllipsis" Margin="0,2,0,0">
                                                         <Run Text="{Binding Command}" />
                                                     </TextBlock>
-                                                    <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
+                                                    <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="2"
                                                                 Orientation="Horizontal" VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding Source}" FontSize="10"
                                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
