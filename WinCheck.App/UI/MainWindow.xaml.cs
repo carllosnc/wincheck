@@ -138,7 +138,7 @@ public sealed partial class MainWindow : Window
         NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         CollectHardwareInfo();
-        StartupList.ItemsSource ??= StartupService.ScanStartupEntries();
+        StartupList.ItemsSource = StartupService.ScanStartupEntries();
     }
 
     private void CollectHardwareInfo()
