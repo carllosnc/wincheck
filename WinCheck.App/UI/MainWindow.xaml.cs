@@ -39,6 +39,7 @@ public sealed partial class MainWindow : Window
     private string? _currentDrive;
     private string? _currentScanPath;
     private List<FolderInfo> _currentResults = [];
+    private readonly Dictionary<string, List<FolderInfo>> _scanCache = new(StringComparer.OrdinalIgnoreCase);
 
     public MainWindow()
     {
@@ -682,6 +683,7 @@ public sealed partial class MainWindow : Window
         _currentDrive = null;
         _currentScanPath = null;
         _currentResults.Clear();
+        _scanCache.Clear();
         FolderList.ItemsSource = null;
         ScanStatus.Text = "";
         BreadcrumbPath.Visibility = Visibility.Collapsed;
@@ -693,6 +695,7 @@ public sealed partial class MainWindow : Window
         if (DriveSelector.SelectedItem is not ComboBoxItem item || item.Tag is not string drive)
             return;
 
+        _scanCache.Clear();
         await ScanPath(drive);
     }
 
@@ -722,6 +725,18 @@ public sealed partial class MainWindow : Window
     {
         _currentScanPath = path;
         _currentDrive ??= System.IO.Path.GetPathRoot(path);
+
+        if (_scanCache.TryGetValue(path, out var cached))
+        {
+            _currentResults = cached;
+            BreadcrumbPath.Text = path;
+            BreadcrumbPath.Visibility = Visibility.Visible;
+            DiskBackBtn.IsEnabled = !string.Equals(path, _currentDrive, StringComparison.OrdinalIgnoreCase);
+            var totalSize = cached.Sum(f => f.SizeBytes);
+            ScanStatus.Text = $"{cached.Count} folders | {cached.Sum(f => f.FolderCount)} subfolders | {FolderInfo.FormatBytesLocal(totalSize)}";
+            ApplySort();
+            return;
+        }
 
         ScanBtn.IsEnabled = false;
         ScanStatus.Text = "Scanning...";
@@ -756,6 +771,7 @@ public sealed partial class MainWindow : Window
             foreach (var f in results)
                 f.Percentage = totalSize > 0 ? (double)f.SizeBytes / totalSize * 100.0 : 0;
 
+            _scanCache[path] = results;
             ApplySort();
             var subFolders = results.Sum(f => f.FolderCount);
             ScanStatus.Text = $"{results.Count} folders | {subFolders} subfolders | {FolderInfo.FormatBytesLocal(totalSize)}";
