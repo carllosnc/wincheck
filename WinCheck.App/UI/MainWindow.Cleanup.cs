@@ -1,0 +1,113 @@
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using WinCheck.Models;
+using WinCheck.Services;
+
+namespace WinCheck.UI;
+
+public sealed partial class MainWindow
+{
+    private List<CleanupCategory> _cleanupCategories = [];
+    private bool _cleanupAnalyzed;
+
+    public void OnNavCleanup(object sender, RoutedEventArgs e)
+    {
+        ProcessesView.Visibility = Visibility.Collapsed;
+        InfoView.Visibility = Visibility.Collapsed;
+        DiskView.Visibility = Visibility.Collapsed;
+        CleanupView.Visibility = Visibility.Visible;
+        NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
+        NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavInfo.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+    }
+
+    public void OnCleanupToggleDetails(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is CleanupCategory cat)
+            cat.IsExpanded = !cat.IsExpanded;
+    }
+
+    public async void OnCleanupAnalyze(object sender, RoutedEventArgs e)
+    {
+        CleanupAnalyzeBtn.IsEnabled = false;
+        CleanupRunBtn.IsEnabled = false;
+        CleanupStatus.Text = "Analyzing...";
+        _cleanupAnalyzed = false;
+
+        _cleanupCategories = CleanupService.BuildCleanupCategories();
+        CleanupList.ItemsSource = _cleanupCategories;
+
+        foreach (var cat in _cleanupCategories)
+        {
+            cat.Status = "Scanning...";
+            var (size, details) = await Task.Run(() => CleanupService.CalculateCategorySize(cat));
+            cat.SizeBytes = size;
+            cat.DetailsText = details;
+            cat.Status = size > 0
+                ? (cat.Name == "Recycle Bin"
+                    ? $"{CleanupService.QueryRecycleBin().items} items found"
+                    : $"{CleanupService.CountCategoryFiles(cat)} files found")
+                : "Nothing to clean";
+        }
+
+        var total = _cleanupCategories.Where(c => c.SizeBytes > 0).Sum(c => c.SizeBytes);
+        CleanupStatus.Text = total > 0
+            ? $"Found {FolderInfo.FormatBytesLocal(total)} of cleanable data"
+            : "Nothing to clean";
+
+        CleanupRunBtn.IsEnabled = total > 0;
+        CleanupAnalyzeBtn.IsEnabled = true;
+        _cleanupAnalyzed = true;
+    }
+
+    public async void OnCleanupRun(object sender, RoutedEventArgs e)
+    {
+        if (!_cleanupAnalyzed) return;
+
+        var isAdmin = CleanupService.IsAdministrator();
+        var needsAdmin = _cleanupCategories.Any(c => c.IsChecked && c.SizeBytes > 0 && c.RequiresAdmin);
+
+        if (needsAdmin && !isAdmin)
+        {
+            CleanupStatus.Text = "Run as administrator to clean system paths";
+            ShowAdminCategories();
+            CleanupAnalyzeBtn.IsEnabled = true;
+            return;
+        }
+
+        CleanupAnalyzeBtn.IsEnabled = false;
+        CleanupRunBtn.IsEnabled = false;
+        var totalFreed = 0L;
+        var totalFiles = 0;
+
+        foreach (var cat in _cleanupCategories.Where(c => c.IsChecked && c.SizeBytes > 0))
+        {
+            cat.Status = "Cleaning...";
+            var (files, freed) = await Task.Run(() => CleanupService.CleanCategory(cat));
+            cat.FilesDeleted = files;
+            cat.BytesFreed = freed;
+            cat.Status = files > 0 ? "Cleaned" : "Skipped";
+            if (files == 0 && cat.IsChecked) cat.Status = "Nothing to clean";
+            cat.SizeBytes = 0;
+            totalFreed += freed;
+            totalFiles += files;
+        }
+
+        CleanupStatus.Text = totalFiles > 0
+            ? $"Cleaned {totalFiles} files | {FolderInfo.FormatBytesLocal(totalFreed)} freed"
+            : "Nothing was cleaned";
+
+        CleanupAnalyzeBtn.IsEnabled = true;
+    }
+
+    private void ShowAdminCategories()
+    {
+        foreach (var cat in _cleanupCategories.Where(c => c.RequiresAdmin && c.SizeBytes > 0))
+            cat.Status = "Requires admin rights";
+    }
+}
