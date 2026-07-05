@@ -267,7 +267,7 @@ public sealed partial class MainWindow : Window
                 var groupNode = new TreeViewNode
                 {
                     Content = groupTn,
-                    IsExpanded = true
+                    IsExpanded = false
                 };
                 foreach (var childTn in groupTn.Children)
                     groupNode.Children.Add(new TreeViewNode { Content = childTn });
