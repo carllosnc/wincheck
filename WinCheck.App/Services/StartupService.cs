@@ -14,9 +14,9 @@ public static class StartupService
         var entries = new List<StartupEntry>();
 
         ReadKey(Registry.CurrentUser, RunKey, true, "Current User", entries);
-        ReadKey(Registry.CurrentUser, RunDisabledKey, false, "Current User", entries);
+        ReadKey(Registry.CurrentUser, RunDisabledKey, false, "Current User (disabled)", entries);
         ReadKey(Registry.LocalMachine, RunKey, true, "All Users", entries);
-        ReadKey(Registry.LocalMachine, RunDisabledKey, false, "All Users", entries);
+        ReadKey(Registry.LocalMachine, RunDisabledKey, false, "All Users (disabled)", entries);
 
         ScanFolder(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "Startup Folder", entries);
         ScanFolder(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup), "Startup Folder", entries);
@@ -29,7 +29,12 @@ public static class StartupService
         try
         {
             using var key = hive.OpenSubKey(path);
-            if (key == null) return;
+            if (key == null)
+            {
+                if (!isEnabled)
+                    hive.CreateSubKey(path)?.Dispose();
+                return;
+            }
 
             foreach (var name in key.GetValueNames())
             {
