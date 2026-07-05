@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -11,8 +12,10 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Markup;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.Win32;
 using Windows.Graphics;
+using Windows.Storage.Streams;
 using WinCheck.Models;
 using WinCheck.Services;
 using WinRT.Interop;
@@ -325,6 +328,45 @@ public sealed partial class MainWindow : Window
         (SolidColorBrush)(isWindows
             ? Application.Current.Resources["AccentFillColorDefaultBrush"]
             : Application.Current.Resources["TextFillColorSecondaryBrush"]);
+
+    private static readonly ConcurrentDictionary<string, byte[]?> IconBytesCache = new(StringComparer.OrdinalIgnoreCase);
+
+    internal static byte[]? GetIconBytes(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+        if (IconBytesCache.TryGetValue(path, out var cached)) return cached;
+
+        try
+        {
+            using var icon = System.Drawing.Icon.ExtractAssociatedIcon(path);
+            if (icon == null) { IconBytesCache[path] = null; return null; }
+            using var bmp = icon.ToBitmap();
+            using var ms = new MemoryStream();
+            bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            var bytes = ms.ToArray();
+            IconBytesCache[path] = bytes;
+            return bytes;
+        }
+        catch
+        {
+            IconBytesCache[path] = null;
+            return null;
+        }
+    }
+
+    internal static ImageSource? IconFromBytes(byte[]? bytes)
+    {
+        if (bytes == null) return null;
+        var bitmap = new BitmapImage();
+        var ras = new InMemoryRandomAccessStream();
+        using (var writer = new DataWriter(ras.GetOutputStreamAt(0)))
+        {
+            writer.WriteBytes(bytes);
+            writer.StoreAsync().AsTask().GetAwaiter().GetResult();
+        }
+        bitmap.SetSource(ras);
+        return bitmap;
+    }
 
     private int CalculateCpuUsage()
     {
@@ -759,8 +801,13 @@ public sealed class TreeNodeTemplateSelector : DataTemplateSelector
                             <ColumnDefinition Width="72"/><ColumnDefinition Width="86"/><ColumnDefinition Width="58"/>
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                            <FontIcon Glyph="{Binding Content.Process.TagGlyph}" FontSize="14"
-                                      Foreground="{Binding Content.Process.TagColor}"/>
+                            <Grid Width="16" Height="16">
+                                <FontIcon Glyph="{Binding Content.Process.TagGlyph}" FontSize="14"
+                                          Foreground="{Binding Content.Process.TagColor}"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Image Source="{Binding Content.Process.IconSource}"
+                                       Width="16" Height="16" Stretch="Uniform"/>
+                            </Grid>
                         </StackPanel>
                         <TextBlock Grid.Column="1" Text="{Binding Content.Process.Name}"
                                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
@@ -798,7 +845,7 @@ public class ProcessRow : INotifyPropertyChanged
     private string _description = "";
     public string Description { get => _description; set { _description = value; Notify(); } }
     private string _executablePath = "";
-    public string ExecutablePath { get => _executablePath; set { _executablePath = value; Notify(); } }
+    public string ExecutablePath { get => _executablePath; set { _executablePath = value; _iconSource = null; Notify(); Notify(nameof(IconSource)); } }
     private bool _isResponding;
     public bool IsResponding { get => _isResponding; set { _isResponding = value; Notify(); } }
     private bool _isWindows;
@@ -807,6 +854,16 @@ public class ProcessRow : INotifyPropertyChanged
     public SolidColorBrush TagColor { get => _tagColor; set { _tagColor = value; Notify(); } }
     private string _tagGlyph = "\uE8A9";
     public string TagGlyph { get => _tagGlyph; set { _tagGlyph = value; Notify(); } }
+    private ImageSource? _iconSource;
+    public ImageSource? IconSource
+    {
+        get
+        {
+            if (_iconSource is not null) return _iconSource;
+            _iconSource = MainWindow.IconFromBytes(MainWindow.GetIconBytes(_executablePath));
+            return _iconSource;
+        }
+    }
     public event PropertyChangedEventHandler? PropertyChanged;
     private void Notify([CallerMemberName] string? prop = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(prop));
 }
