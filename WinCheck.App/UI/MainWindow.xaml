@@ -9,28 +9,28 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Margin="12,12,12,0">
+        <Grid Grid.Row="0" Margin="12,12,12,8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="180" />
-                <ColumnDefinition Width="4" />
+                <ColumnDefinition Width="12" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <Border Grid.Column="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}" BorderThickness="1"
-                    CornerRadius="6" Padding="0,8,0,8">
+                    CornerRadius="6" Padding="12,8,12,8">
                 <StackPanel>
                     <TextBlock Text="NAVIGATION" FontSize="10" FontWeight="Bold"
                                Foreground="{ThemeResource TextFillColorDisabledBrush}"
-                               Margin="12,0,12,10" />
+                               Margin="0,0,0,12" />
                     <Button x:Name="NavProcesses" Content="Processes" Click="OnNavProcesses"
-                            HorizontalAlignment="Stretch" Height="36" Margin="6,0,6,2"
+                            HorizontalAlignment="Stretch" Height="36" Margin="0,0,0,4"
                             Style="{ThemeResource SidebarButtonStyle}" />
                     <Button x:Name="NavInfo" Content="System Info" Click="OnNavInfo"
-                            HorizontalAlignment="Stretch" Height="36" Margin="6,0,6,2"
+                            HorizontalAlignment="Stretch" Height="36" Margin="0,0,0,4"
                             Style="{ThemeResource SidebarButtonStyle}" />
                     <Button x:Name="NavDisk" Content="Disk" Click="OnNavDisk"
-                            HorizontalAlignment="Stretch" Height="36" Margin="6,0,6,2"
+                            HorizontalAlignment="Stretch" Height="36" Margin="0,0,0,4"
                             Style="{ThemeResource SidebarButtonStyle}" />
                 </StackPanel>
             </Border>
@@ -44,12 +44,12 @@
 
                     <Border Grid.Row="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                             BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}" BorderThickness="1"
-                            Padding="10,6" CornerRadius="4" Margin="0,0,0,8">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
+                            Padding="12" CornerRadius="6" Margin="0,0,0,12">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Spacing="12">
                             <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                     BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
                                     BorderThickness="1" CornerRadius="4"
-                                    Padding="14,10" Width="200" Margin="0,0,12,0">
+                                    Padding="14,10" Width="200">
                                 <StackPanel>
                                     <Grid>
                                         <TextBlock Text="RAM" FontSize="12" FontWeight="Bold"
@@ -67,7 +67,7 @@
                             <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                     BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
                                     BorderThickness="1" CornerRadius="4"
-                                    Padding="14,10" Width="200" Margin="0,0,12,0">
+                                    Padding="14,10" Width="200">
                                 <StackPanel>
                                     <Grid>
                                         <TextBlock Text="CPU" FontSize="12" FontWeight="Bold"
@@ -112,7 +112,7 @@
 
                         <Border Grid.Column="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}" BorderThickness="1"
-                                CornerRadius="4" Padding="12">
+                                CornerRadius="6" Padding="12">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -122,7 +122,7 @@
                                 </Grid.RowDefinitions>
 
                                 <TextBlock Grid.Row="0" Text="Processes" FontSize="15" FontWeight="Bold"
-                                           Foreground="{ThemeResource AccentFillColorDefaultBrush}" Margin="0,0,0,10" />
+                                           Foreground="{ThemeResource AccentFillColorDefaultBrush}" Margin="0,0,0,8" />
 
                                 <TextBox x:Name="SearchBox" Grid.Row="1" TextChanged="OnSearchTextChanged"
                                          PlaceholderText="Search by name, company or PID..."
@@ -157,7 +157,7 @@
 
                         <Border Grid.Column="2" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                                 BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}" BorderThickness="1"
-                                Padding="12" CornerRadius="4" Margin="8,0,0,0">
+                                Padding="12" CornerRadius="6" Margin="12,0,0,0">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -165,7 +165,7 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <TextBlock Text="Process Details" FontSize="15" FontWeight="Bold"
-                                           Foreground="{ThemeResource AccentFillColorDefaultBrush}" Margin="0,0,0,10" />
+                                           Foreground="{ThemeResource AccentFillColorDefaultBrush}" Margin="0,0,0,8" />
                                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                                     <StackPanel x:Name="DetailPanel" Margin="0,4,0,0">
                                         <TextBlock x:Name="DetailPlaceholder"
@@ -236,7 +236,7 @@
                                 </ScrollViewer>
                                 <Button Grid.Row="2" x:Name="KillBtn" Background="#C50514" Foreground="White"
                                         Content="Kill Process" Click="OnKillProcess" IsEnabled="False"
-                                        HorizontalAlignment="Left" Margin="0,12,0,0" />
+                                        HorizontalAlignment="Left" Margin="0,8,0,0" />
                             </Grid>
                         </Border>
                     </Grid>
@@ -400,7 +400,7 @@
 
                     <Border Grid.Row="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                             BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}" BorderThickness="1"
-                            CornerRadius="4" Padding="12" Margin="0,0,0,8">
+                            CornerRadius="6" Padding="12" Margin="0,0,0,12">
                         <StackPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                 <ComboBox x:Name="DriveSelector" Width="220" VerticalAlignment="Center"
@@ -471,7 +471,7 @@
 
         <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}" BorderThickness="1"
-                Padding="10,6" CornerRadius="4" Margin="8,4,8,4">
+                Padding="10,6" CornerRadius="6" Margin="12,4,12,4">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
