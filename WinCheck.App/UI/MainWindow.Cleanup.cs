@@ -34,6 +34,7 @@ public sealed partial class MainWindow
 
     public async void OnCleanupAnalyze(object sender, RoutedEventArgs e)
     {
+        SetLoading("Analyzing system...", true);
         CleanupAnalyzeBtn.IsEnabled = false;
         CleanupRunBtn.IsEnabled = false;
         CleanupStatus.Text = "Analyzing...";
@@ -63,11 +64,14 @@ public sealed partial class MainWindow
         CleanupRunBtn.IsEnabled = total > 0;
         CleanupAnalyzeBtn.IsEnabled = true;
         _cleanupAnalyzed = true;
+        SetLoading(null, false);
     }
 
     public async void OnCleanupRun(object sender, RoutedEventArgs e)
     {
         if (!_cleanupAnalyzed) return;
+
+        SetLoading("Cleaning files...", true);
 
         var isAdmin = CleanupService.IsAdministrator();
         var needsAdmin = _cleanupCategories.Any(c => c.IsChecked && c.SizeBytes > 0 && c.RequiresAdmin);
@@ -77,6 +81,7 @@ public sealed partial class MainWindow
             CleanupStatus.Text = "Run as administrator to clean system paths";
             ShowAdminCategories();
             CleanupAnalyzeBtn.IsEnabled = true;
+            SetLoading(null, false);
             return;
         }
 
@@ -103,6 +108,7 @@ public sealed partial class MainWindow
             : "Nothing was cleaned";
 
         CleanupAnalyzeBtn.IsEnabled = true;
+        SetLoading(null, false);
     }
 
     private void ShowAdminCategories()

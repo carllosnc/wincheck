@@ -98,9 +98,8 @@ public sealed partial class MainWindow : Window
 
     private void SetLoading(string? message, bool isLoading)
     {
-        LoadingRing.Visibility = isLoading ? Visibility.Visible : Visibility.Collapsed;
-        LoadingLabel.Visibility = isLoading ? Visibility.Visible : Visibility.Collapsed;
-        if (message != null) LoadingLabel.Text = message;
+        LoadingOverlay.Visibility = isLoading ? Visibility.Visible : Visibility.Collapsed;
+        if (message != null) LoadingOverlayText.Text = message;
     }
 
     internal static string FormatBytes(long bytes) => bytes switch
