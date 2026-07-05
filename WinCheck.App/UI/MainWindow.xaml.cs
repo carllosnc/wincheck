@@ -36,6 +36,9 @@ public sealed partial class MainWindow : Window
     private long _prevUserTime;
     private bool _cpuInitialized;
     private ProcessRow? _selectedProcess;
+    private string? _currentDrive;
+    private string? _currentScanPath;
+    private List<FolderInfo> _currentResults = [];
 
     public MainWindow()
     {
@@ -676,8 +679,13 @@ public sealed partial class MainWindow : Window
 
     public void OnDriveChanged(object sender, SelectionChangedEventArgs e)
     {
+        _currentDrive = null;
+        _currentScanPath = null;
+        _currentResults.Clear();
         FolderList.ItemsSource = null;
         ScanStatus.Text = "";
+        BreadcrumbPath.Visibility = Visibility.Collapsed;
+        DiskBackBtn.IsEnabled = false;
     }
 
     public async void OnScanDisk(object sender, RoutedEventArgs e)
@@ -685,10 +693,43 @@ public sealed partial class MainWindow : Window
         if (DriveSelector.SelectedItem is not ComboBoxItem item || item.Tag is not string drive)
             return;
 
+        await ScanPath(drive);
+    }
+
+    public void OnFolderDrill(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button btn && btn.Tag is FolderInfo folder)
+            _ = ScanPath(folder.Path);
+    }
+
+    public void OnDiskBack(object sender, RoutedEventArgs e)
+    {
+        if (_currentScanPath == null || _currentDrive == null) return;
+
+        var parent = System.IO.Path.GetDirectoryName(_currentScanPath);
+        if (parent == null || !parent.StartsWith(_currentDrive, StringComparison.OrdinalIgnoreCase))
+            parent = _currentDrive;
+
+        _ = ScanPath(parent);
+    }
+
+    public void OnDiskSortChanged(object sender, SelectionChangedEventArgs e)
+    {
+        ApplySort();
+    }
+
+    private async Task ScanPath(string path)
+    {
+        _currentScanPath = path;
+        _currentDrive ??= System.IO.Path.GetPathRoot(path);
+
         ScanBtn.IsEnabled = false;
         ScanStatus.Text = "Scanning...";
         FolderList.ItemsSource = null;
         ScanProgress.Visibility = Visibility.Visible;
+        BreadcrumbPath.Text = path;
+        BreadcrumbPath.Visibility = Visibility.Visible;
+        DiskBackBtn.IsEnabled = !string.Equals(path, _currentDrive, StringComparison.OrdinalIgnoreCase);
 
         var results = new List<FolderInfo>();
         var progress = new Progress<FolderInfo>(folder =>
@@ -699,28 +740,40 @@ public sealed partial class MainWindow : Window
             results.Add(folder);
         });
 
-        await Task.Run(() => ScanDirectory(drive, progress));
+        await Task.Run(() => ScanDirectory(path, progress));
 
         ScanProgress.Visibility = Visibility.Collapsed;
+        _currentResults = results;
 
         if (results.Count == 0)
         {
             ScanStatus.Text = "No folders found.";
+            FolderList.ItemsSource = null;
         }
         else
         {
             var totalSize = results.Sum(f => f.SizeBytes);
             foreach (var f in results)
-            {
                 f.Percentage = totalSize > 0 ? (double)f.SizeBytes / totalSize * 100.0 : 0;
-            }
 
-            FolderList.ItemsSource = results.OrderByDescending(f => f.SizeBytes).ToList();
+            ApplySort();
             var subFolders = results.Sum(f => f.FolderCount);
             ScanStatus.Text = $"{results.Count} folders | {subFolders} subfolders | {FolderInfo.FormatBytesLocal(totalSize)}";
         }
 
         ScanBtn.IsEnabled = true;
+    }
+
+    private void ApplySort()
+    {
+        if (_currentResults.Count == 0) return;
+
+        FolderList.ItemsSource = (DiskSortMode.SelectedIndex) switch
+        {
+            1 => _currentResults.OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase).ToList(),
+            2 => _currentResults.OrderByDescending(f => f.FileCount).ToList(),
+            _ => _currentResults.OrderByDescending(f => f.SizeBytes).ToList()
+        };
     }
 
     private static void ScanDirectory(string root, IProgress<FolderInfo> progress)

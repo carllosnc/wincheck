@@ -1,5 +1,8 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Microsoft.UI;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 
 namespace WinCheck.Models;
 
@@ -12,6 +15,17 @@ public class FolderInfo : INotifyPropertyChanged
     private int _folderCount;
     private double _percentage;
     private double _barWidth;
+    private SolidColorBrush? _barBrush;
+
+    private static readonly HashSet<string> CleanupPatterns = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Temp", "tmp", "Cache", ".cache", "caches", "Logs", "logs",
+        "CrashDumps", "Crash Reports", "Recent", "Prefetch"
+    };
+
+    private static readonly SolidColorBrush RedBrush = new(Microsoft.UI.Colors.Red);
+    private static readonly SolidColorBrush OrangeBrush = new(Microsoft.UI.Colors.Orange);
+    private static readonly SolidColorBrush GreenBrush = new(Microsoft.UI.Colors.LimeGreen);
 
     public string Name { get => _name; set { _name = value; Notify(); } }
     public string Path { get => _path; set { _path = value; Notify(); } }
@@ -22,8 +36,26 @@ public class FolderInfo : INotifyPropertyChanged
     public double Percentage
     {
         get => _percentage;
-        set { _percentage = value; Notify(); Notify(nameof(PercentageFormatted)); }
+        set { _percentage = value; _barBrush = null; Notify(); Notify(nameof(PercentageFormatted)); Notify(nameof(BarBrush)); }
     }
+
+    public SolidColorBrush BarBrush
+    {
+        get
+        {
+            if (_barBrush is not null) return _barBrush;
+            _barBrush = Percentage switch
+            {
+                >= 50 => RedBrush,
+                >= 25 => OrangeBrush,
+                _ => GreenBrush
+            };
+            return _barBrush;
+        }
+    }
+
+    public bool IsCleanupCandidate => CleanupPatterns.Contains(Name);
+    public Visibility CleanupVisibility => IsCleanupCandidate ? Visibility.Visible : Visibility.Collapsed;
 
     public double BarWidth
     {

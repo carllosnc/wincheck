@@ -402,14 +402,27 @@
                             BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}" BorderThickness="1"
                             CornerRadius="6" Padding="12" Margin="0,0,0,12">
                         <StackPanel>
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <ComboBox x:Name="DriveSelector" Width="220" VerticalAlignment="Center"
-                                          Margin="0,0,10,0" SelectionChanged="OnDriveChanged" />
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                                <Button x:Name="DiskBackBtn" Content="&#xE72B;" FontFamily="Segoe MDL2 Assets"
+                                        FontSize="12" Width="32" Height="32" Click="OnDiskBack"
+                                        IsEnabled="False" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                <ComboBox x:Name="DriveSelector" Width="180" VerticalAlignment="Center"
+                                          Margin="0,0,8,0" SelectionChanged="OnDriveChanged" />
                                 <Button x:Name="ScanBtn" Content="Scan" Click="OnScanDisk"
-                                        VerticalAlignment="Center" Margin="0,0,10,0" />
+                                        VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox x:Name="DiskSortMode" Width="100" VerticalAlignment="Center"
+                                          SelectedIndex="0" SelectionChanged="OnDiskSortChanged">
+                                    <ComboBoxItem Content="Size" />
+                                    <ComboBoxItem Content="Name" />
+                                    <ComboBoxItem Content="Files" />
+                                </ComboBox>
                                 <TextBlock x:Name="ScanStatus" FontSize="12"
-                                           Foreground="{ThemeResource TextFillColorDisabledBrush}" VerticalAlignment="Center" />
+                                           Foreground="{ThemeResource TextFillColorDisabledBrush}"
+                                           VerticalAlignment="Center" Margin="8,0,0,0" />
                             </StackPanel>
+                            <TextBlock x:Name="BreadcrumbPath" FontSize="11"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       TextTrimming="CharacterEllipsis" Margin="0,0,0,4" Visibility="Collapsed" />
                             <Border x:Name="ScanProgress" Visibility="Collapsed"
                                     Background="{ThemeResource SubtleFillColorSecondaryBrush}"
                                     CornerRadius="6" Padding="10">
@@ -437,27 +450,47 @@
                                             BorderThickness="0,0,0,1" Padding="12,8" Margin="0">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
-                                            <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name}" FontSize="13"
-                                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Path}" FontSize="11"
+                                            <FontIcon Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+                                                      Glyph="&#xE8B7;" FontSize="16"
+                                                      Foreground="{ThemeResource AccentFillColorDefaultBrush}"
+                                                      VerticalAlignment="Center" Margin="0,0,10,0" />
+                                            <Button Grid.Row="0" Grid.Column="1"
+                                                    Content="{Binding Name}" FontSize="13"
+                                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                                    HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                    Tag="{Binding}"
+                                                    Click="OnFolderDrill"
+                                                    Style="{StaticResource TextBlockButtonStyle}" />
+                                            <FontIcon Grid.Row="0" Grid.Column="1"
+                                                      Glyph="&#xE74D;" FontSize="12"
+                                                      Foreground="Orange" HorizontalAlignment="Right"
+                                                      VerticalAlignment="Center" Margin="0,0,6,0"
+                                                      Visibility="{Binding CleanupVisibility}" />
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Path}" FontSize="11"
                                                        Foreground="{ThemeResource TextFillColorDisabledBrush}"
                                                        TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
-                                            <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
+                                            <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="2"
                                                         VerticalAlignment="Center" Margin="10,0,0,0">
                                                 <TextBlock Text="{Binding SizeFormatted}" FontSize="13" FontWeight="SemiBold"
                                                            Foreground="{ThemeResource AccentFillColorDefaultBrush}"
                                                            HorizontalAlignment="Right" />
                                                 <ProgressBar Width="150" Height="4" Value="{Binding Percentage}"
+                                                             Foreground="{Binding BarBrush}"
                                                              Margin="0,4,0,0" HorizontalAlignment="Right" />
                                                 <TextBlock Text="{Binding PercentageFormatted}" FontSize="10"
                                                            Foreground="{ThemeResource TextFillColorDisabledBrush}"
                                                            HorizontalAlignment="Right" Margin="0,2,0,0" />
+                                                <TextBlock FontSize="10"
+                                                           Foreground="{ThemeResource TextFillColorDisabledBrush}"
+                                                           HorizontalAlignment="Right" Margin="0,2,0,0">
+                                                    <Run Text="{Binding FileCount}" /><Run Text=" files, "/>
+                                                    <Run Text="{Binding FolderCount}" /><Run Text=" folders"/>
+                                                </TextBlock>
                                             </StackPanel>
                                         </Grid>
                                     </Border>
