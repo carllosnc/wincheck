@@ -6,156 +6,131 @@ namespace WinCheck.Services;
 
 public static class StartupService
 {
-    private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string RunDisabledKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run_disabled";
+    private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string RunDisabledKey = @"Software\Microsoft\Windows\CurrentVersion\Run_disabled";
 
     public static List<StartupEntry> ScanStartupEntries()
     {
         var entries = new List<StartupEntry>();
 
-        ScanRegistryKey(Registry.CurrentUser, RunKeyPath, true, "Current User", entries);
-        ScanRegistryKey(Registry.CurrentUser, RunDisabledKeyPath, false, "Current User", entries);
-        ScanRegistryKey(Registry.LocalMachine, RunKeyPath, true, "All Users", entries);
-        ScanRegistryKey(Registry.LocalMachine, RunDisabledKeyPath, false, "All Users", entries);
+        ReadKey(Registry.CurrentUser, RunKey, true, "Current User", entries);
+        ReadKey(Registry.CurrentUser, RunDisabledKey, false, "Current User", entries);
+        ReadKey(Registry.LocalMachine, RunKey, true, "All Users", entries);
+        ReadKey(Registry.LocalMachine, RunDisabledKey, false, "All Users", entries);
 
-        ScanStartupFolder(
-            Environment.GetFolderPath(Environment.SpecialFolder.Startup),
-            "Current User Startup Folder", entries);
-        ScanStartupFolder(
-            Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup),
-            "All Users Startup Folder", entries);
+        ScanFolder(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "Startup Folder", entries);
+        ScanFolder(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup), "Startup Folder", entries);
 
         return entries;
     }
 
-    private static void ScanRegistryKey(RegistryKey hive, string keyPath, bool isEnabled, string source, List<StartupEntry> entries)
+    private static void ReadKey(RegistryKey hive, string path, bool isEnabled, string source, List<StartupEntry> list)
     {
         try
         {
-            using var key = hive.OpenSubKey(keyPath);
+            using var key = hive.OpenSubKey(path);
             if (key == null) return;
 
-            foreach (var valueName in key.GetValueNames())
+            foreach (var name in key.GetValueNames())
             {
-                var command = key.GetValue(valueName)?.ToString() ?? "";
-                if (string.IsNullOrWhiteSpace(command)) continue;
+                var cmd = key.GetValue(name)?.ToString() ?? "";
+                if (string.IsNullOrWhiteSpace(cmd)) continue;
 
-                entries.Add(new StartupEntry
+                list.Add(new StartupEntry
                 {
-                    Name = valueName,
-                    Command = command,
+                    Name = name,
+                    Command = cmd,
                     Source = source,
                     IsEnabled = isEnabled,
                     RegistrySource = hive == Registry.CurrentUser ? "HKCU" : "HKLM",
-                    ValueName = valueName
+                    ValueName = name
                 });
             }
         }
         catch { }
     }
 
-    private static void ScanStartupFolder(string folderPath, string source, List<StartupEntry> entries)
+    private static void ScanFolder(string path, string source, List<StartupEntry> list)
     {
         try
         {
-            if (!Directory.Exists(folderPath)) return;
-
-            foreach (var file in Directory.GetFiles(folderPath, "*.lnk"))
-            {
-                entries.Add(new StartupEntry
-                {
-                    Name = Path.GetFileNameWithoutExtension(file),
-                    Command = file,
-                    Source = source,
-                    IsEnabled = true,
-                    RegistrySource = "StartupFolder",
-                    ValueName = file
-                });
-            }
-
-            foreach (var file in Directory.GetFiles(folderPath, "*.lnk.disabled"))
-            {
-                entries.Add(new StartupEntry
-                {
-                    Name = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(file)),
-                    Command = file,
-                    Source = source,
-                    IsEnabled = false,
-                    RegistrySource = "StartupFolder",
-                    ValueName = file
-                });
-            }
+            if (!Directory.Exists(path)) return;
+            foreach (var f in Directory.GetFiles(path, "*.lnk"))
+                list.Add(CreateFolderEntry(f, true, source));
+            foreach (var f in Directory.GetFiles(path, "*.lnk.disabled"))
+                list.Add(CreateFolderEntry(f, false, source));
         }
         catch { }
+    }
+
+    private static StartupEntry CreateFolderEntry(string file, bool enabled, string source)
+    {
+        var name = Path.GetFileNameWithoutExtension(file);
+        if (name.EndsWith(".lnk")) name = name[..^4];
+
+        return new StartupEntry
+        {
+            Name = name,
+            Command = file,
+            Source = enabled ? source : source + " (disabled)",
+            IsEnabled = enabled,
+            RegistrySource = "StartupFolder",
+            ValueName = file
+        };
     }
 
     public static bool ToggleStartupEntry(StartupEntry entry)
     {
         if (entry.RegistrySource == "StartupFolder")
-            return ToggleStartupFolder(entry);
-
-        return ToggleRegistryEntry(entry);
+            return ToggleFolder(entry);
+        return ToggleReg(entry);
     }
 
-    private static bool ToggleStartupFolder(StartupEntry entry)
+    private static bool ToggleFolder(StartupEntry entry)
     {
         try
         {
             if (entry.IsEnabled)
             {
-                var disabledPath = entry.ValueName + ".disabled";
-                File.Move(entry.ValueName, disabledPath);
-                entry.ValueName = disabledPath;
+                var dst = entry.ValueName + ".disabled";
+                File.Move(entry.ValueName, dst);
+                entry.ValueName = dst;
             }
             else
             {
-                var originalPath = entry.ValueName.EndsWith(".disabled")
-                    ? entry.ValueName[..^9]
-                    : entry.ValueName;
-                File.Move(entry.ValueName, originalPath);
-                entry.ValueName = originalPath;
+                var src = entry.ValueName.EndsWith(".disabled") ? entry.ValueName[..^9] : entry.ValueName;
+                File.Move(entry.ValueName, src);
+                entry.ValueName = src;
             }
             entry.IsEnabled = !entry.IsEnabled;
             return true;
         }
-        catch
-        {
-            entry.Status = "Failed";
-            return false;
-        }
+        catch { entry.Status = "Failed"; return false; }
     }
 
-    private static bool ToggleRegistryEntry(StartupEntry entry)
+    private static bool ToggleReg(StartupEntry entry)
     {
         var hive = entry.RegistrySource == "HKCU" ? Registry.CurrentUser : Registry.LocalMachine;
-        var fromKey = entry.IsEnabled ? RunKeyPath : RunDisabledKeyPath;
-        var toKey = entry.IsEnabled ? RunDisabledKeyPath : RunKeyPath;
+        var fromPath = entry.IsEnabled ? RunKey : RunDisabledKey;
+        var toPath = entry.IsEnabled ? RunDisabledKey : RunKey;
 
         try
         {
-            using var sourceKey = hive.OpenSubKey(fromKey, writable: true);
-            if (sourceKey == null) return false;
+            using var src = hive.OpenSubKey(fromPath, writable: true);
+            if (src == null) return false;
 
-            var value = sourceKey.GetValue(entry.ValueName);
+            var value = src.GetValue(entry.ValueName);
             if (value == null) return false;
+            src.DeleteValue(entry.ValueName);
 
-            sourceKey.DeleteValue(entry.ValueName);
-
-            using var targetKey = hive.CreateSubKey(toKey);
-            targetKey?.SetValue(entry.ValueName, value);
+            using var dst = hive.CreateSubKey(toPath);
+            if (dst == null) return false;
+            dst.SetValue(entry.ValueName, value);
 
             entry.IsEnabled = !entry.IsEnabled;
             return true;
         }
-        catch (UnauthorizedAccessException)
-        {
-            entry.Status = "Requires admin";
-            return false;
-        }
-        catch
-        {
-            entry.Status = "Failed";
-            return false;
-        }
+        catch (UnauthorizedAccessException) { entry.Status = "Admin required"; return false; }
+        catch { entry.Status = "Failed"; return false; }
     }
 }
