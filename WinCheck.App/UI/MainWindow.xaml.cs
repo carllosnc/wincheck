@@ -238,18 +238,104 @@ public sealed partial class MainWindow : Window
 
     private void SyncTreeToRootNodes()
     {
-        ProcessTree.RootNodes.Clear();
+        if (_treeNodes.Count == 0)
+        {
+            ProcessTree.RootNodes.Clear();
+            return;
+        }
+
+        var incomingCompanies = new HashSet<string>(_treeNodes.Select(t => t.Company), StringComparer.OrdinalIgnoreCase);
+
+        for (int i = ProcessTree.RootNodes.Count - 1; i >= 0; i--)
+        {
+            if (ProcessTree.RootNodes[i].Content is TreeNode tn && tn.IsGroup && !incomingCompanies.Contains(tn.Company))
+                ProcessTree.RootNodes.RemoveAt(i);
+        }
 
         foreach (var groupTn in _treeNodes)
         {
-            var groupNode = new TreeViewNode
+            var existingGroup = ProcessTree.RootNodes
+                .FirstOrDefault(n => n.Content is TreeNode tn && tn.IsGroup && tn.Company == groupTn.Company);
+
+            if (existingGroup != null)
             {
-                Content = groupTn,
-                IsExpanded = true
-            };
-            foreach (var childTn in groupTn.Children)
+                existingGroup.Content = groupTn;
+                SyncGroupChildren(existingGroup, groupTn);
+            }
+            else
+            {
+                var groupNode = new TreeViewNode
+                {
+                    Content = groupTn,
+                    IsExpanded = true
+                };
+                foreach (var childTn in groupTn.Children)
+                    groupNode.Children.Add(new TreeViewNode { Content = childTn });
+                ProcessTree.RootNodes.Add(groupNode);
+            }
+        }
+
+        for (int targetIdx = 0; targetIdx < _treeNodes.Count; targetIdx++)
+        {
+            var targetCompany = _treeNodes[targetIdx].Company;
+            for (int j = 0; j < ProcessTree.RootNodes.Count; j++)
+            {
+                if (ProcessTree.RootNodes[j].Content is not TreeNode tn || !tn.IsGroup || tn.Company != targetCompany) continue;
+                if (j == targetIdx) break;
+                var node = ProcessTree.RootNodes[j];
+                ProcessTree.RootNodes.RemoveAt(j);
+                ProcessTree.RootNodes.Insert(targetIdx, node);
+                break;
+            }
+        }
+    }
+
+    private static void SyncGroupChildren(TreeViewNode groupNode, TreeNode groupTn)
+    {
+        var incomingPids = new HashSet<int>();
+        foreach (var c in groupTn.Children)
+        {
+            if (c.Process != null) incomingPids.Add(c.Process.Id);
+        }
+
+        for (int i = groupNode.Children.Count - 1; i >= 0; i--)
+        {
+            if (groupNode.Children[i].Content is TreeNode tn && !tn.IsGroup && tn.Process != null && !incomingPids.Contains(tn.Process.Id))
+                groupNode.Children.RemoveAt(i);
+        }
+
+        foreach (var childTn in groupTn.Children)
+        {
+            if (childTn.Process == null) continue;
+            var pid = childTn.Process.Id;
+
+            var existing = groupNode.Children
+                .FirstOrDefault(c => c.Content is TreeNode tn && !tn.IsGroup && tn.Process?.Id == pid);
+
+            if (existing != null)
+            {
+                existing.Content = childTn;
+            }
+            else
+            {
                 groupNode.Children.Add(new TreeViewNode { Content = childTn });
-            ProcessTree.RootNodes.Add(groupNode);
+            }
+        }
+
+        for (int targetIdx = 0; targetIdx < groupTn.Children.Count; targetIdx++)
+        {
+            if (groupTn.Children[targetIdx].Process == null) continue;
+            var targetPid = groupTn.Children[targetIdx].Process!.Id;
+
+            for (int j = 0; j < groupNode.Children.Count; j++)
+            {
+                if (groupNode.Children[j].Content is not TreeNode tn || tn.IsGroup || tn.Process?.Id != targetPid) continue;
+                if (j == targetIdx) break;
+                var child = groupNode.Children[j];
+                groupNode.Children.RemoveAt(j);
+                groupNode.Children.Insert(targetIdx, child);
+                break;
+            }
         }
     }
 
