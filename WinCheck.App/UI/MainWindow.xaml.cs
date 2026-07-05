@@ -530,14 +530,21 @@ public sealed partial class MainWindow : Window
         };
     }
 
-    public void OnKillProcess(object sender, RoutedEventArgs e)
+    public async void OnKillProcess(object sender, RoutedEventArgs e)
     {
         if (_selectedProcess == null) return;
 
+        SetLoading($"Killing {_selectedProcess.Name}...", true);
+        KillBtn.IsEnabled = false;
+
         try
         {
-            var proc = System.Diagnostics.Process.GetProcessById(_selectedProcess.Id);
-            proc.Kill();
+            await Task.Run(() =>
+            {
+                var proc = System.Diagnostics.Process.GetProcessById(_selectedProcess.Id);
+                proc.Kill();
+            });
+
             DetailPlaceholder.Text = $"Process {_selectedProcess.Name} (PID {_selectedProcess.Id}) terminated.";
             HideProcessDetails();
         }
@@ -545,6 +552,17 @@ public sealed partial class MainWindow : Window
         {
             _ = ShowErrorDialog($"Failed to kill {_selectedProcess.Name}\n\n{ex.Message}");
         }
+        finally
+        {
+            SetLoading(null, false);
+        }
+    }
+
+    private void SetLoading(string? message, bool isLoading)
+    {
+        LoadingRing.Visibility = isLoading ? Visibility.Visible : Visibility.Collapsed;
+        LoadingLabel.Visibility = isLoading ? Visibility.Visible : Visibility.Collapsed;
+        if (message != null) LoadingLabel.Text = message;
     }
 
     private async Task ShowErrorDialog(string message)
