@@ -835,7 +835,11 @@ public sealed partial class MainWindow : Window
             var (size, details) = await Task.Run(() => CalculateCategorySize(cat));
             cat.SizeBytes = size;
             cat.DetailsText = details;
-            cat.Status = size > 0 ? $"{CountCategoryFiles(cat)} files found" : "Nothing to clean";
+            cat.Status = size > 0
+                ? (cat.Name == "Recycle Bin"
+                    ? $"{QueryRecycleBin().items} items found"
+                    : $"{CountCategoryFiles(cat)} files found")
+                : "Nothing to clean";
         }
 
         var total = _cleanupCategories.Where(c => c.SizeBytes > 0).Sum(c => c.SizeBytes);
@@ -941,6 +945,14 @@ public sealed partial class MainWindow : Window
         long total = 0;
         var details = new List<string>();
 
+        if (cat.Name == "Recycle Bin")
+        {
+            var (size, items) = QueryRecycleBin();
+            if (size > 0)
+                details.Add($"  Recycle Bin  →  {FolderInfo.FormatBytesLocal(size)}  ({items} items)");
+            return (size, string.Join("\n", details));
+        }
+
         foreach (var path in cat.Paths)
         {
             try
@@ -1010,8 +1022,10 @@ public sealed partial class MainWindow : Window
                 }
                 else if (cat.Name == "Recycle Bin")
                 {
+                    var (size, items) = QueryRecycleBin();
                     EmptyRecycleBin();
-                    files += 1;
+                    files += (int)items;
+                    freed += size;
                 }
                 else
                 {
@@ -1093,6 +1107,24 @@ public sealed partial class MainWindow : Window
 
     [DllImport("shell32.dll")]
     private static extern int SHEmptyRecycleBin(IntPtr hwnd, string? root, uint flags);
+
+    [DllImport("shell32.dll")]
+    private static extern int SHQueryRecycleBin(string? pszRootPath, ref SHQUERYRBINFO pSHQueryRBInfo);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct SHQUERYRBINFO
+    {
+        public int cbSize;
+        public long i64Size;
+        public long i64NumItems;
+    }
+
+    private static (long size, long items) QueryRecycleBin()
+    {
+        var info = new SHQUERYRBINFO { cbSize = Marshal.SizeOf<SHQUERYRBINFO>() };
+        var result = SHQueryRecycleBin(null, ref info);
+        return result == 0 ? (info.i64Size, info.i64NumItems) : (0, 0);
+    }
 
     private static void EmptyRecycleBin()
     {
