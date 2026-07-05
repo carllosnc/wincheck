@@ -6,20 +6,33 @@ namespace WinCheck.Services;
 
 public static class StartupService
 {
-    private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string RunDisabledKey = @"Software\Microsoft\Windows\CurrentVersion\Run_disabled";
+    private static readonly (RegistryKey Hive, string Path, string Source, bool IsRun)[] RegistrySources =
+    [
+        (Registry.CurrentUser,  @"Software\Microsoft\Windows\CurrentVersion\Run",                    "HKCU Run",           true),
+        (Registry.CurrentUser,  @"Software\Microsoft\Windows\CurrentVersion\Run_disabled",            "HKCU Run (disabled)", false),
+        (Registry.LocalMachine, @"Software\Microsoft\Windows\CurrentVersion\Run",                    "HKLM Run",           true),
+        (Registry.LocalMachine, @"Software\Microsoft\Windows\CurrentVersion\Run_disabled",            "HKLM Run (disabled)", false),
+        (Registry.CurrentUser,  @"Software\Microsoft\Windows\CurrentVersion\RunOnce",                 "HKCU RunOnce",       true),
+        (Registry.LocalMachine, @"Software\Microsoft\Windows\CurrentVersion\RunOnce",                 "HKLM RunOnce",       true),
+        (Registry.CurrentUser,  @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",   "HKCU Policies",      true),
+        (Registry.LocalMachine, @"Software\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run",   "HKLM Policies",      true),
+    ];
+
+    private static readonly (string Path, string Source)[] FolderSources =
+    [
+        (Environment.GetFolderPath(Environment.SpecialFolder.Startup),       "User Startup"),
+        (Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup), "Common Startup"),
+    ];
 
     public static List<StartupEntry> ScanStartupEntries()
     {
         var entries = new List<StartupEntry>();
 
-        ReadKey(Registry.CurrentUser, RunKey, true, "Current User", entries);
-        ReadKey(Registry.CurrentUser, RunDisabledKey, false, "Current User (disabled)", entries);
-        ReadKey(Registry.LocalMachine, RunKey, true, "All Users", entries);
-        ReadKey(Registry.LocalMachine, RunDisabledKey, false, "All Users (disabled)", entries);
+        foreach (var (hive, path, source, isEnabled) in RegistrySources)
+            ReadKey(hive, path, isEnabled, source, entries);
 
-        ScanFolder(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "Startup Folder", entries);
-        ScanFolder(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup), "Startup Folder", entries);
+        foreach (var (path, source) in FolderSources)
+            ScanFolder(path, source, entries);
 
         return entries;
     }
@@ -31,8 +44,7 @@ public static class StartupService
             using var key = hive.OpenSubKey(path);
             if (key == null)
             {
-                if (!isEnabled)
-                    hive.CreateSubKey(path)?.Dispose();
+                if (!isEnabled) hive.CreateSubKey(path)?.Dispose();
                 return;
             }
 
@@ -61,14 +73,14 @@ public static class StartupService
         {
             if (!Directory.Exists(path)) return;
             foreach (var f in Directory.GetFiles(path, "*.lnk"))
-                list.Add(CreateFolderEntry(f, true, source));
+                list.Add(MakeFolderEntry(f, true, source));
             foreach (var f in Directory.GetFiles(path, "*.lnk.disabled"))
-                list.Add(CreateFolderEntry(f, false, source));
+                list.Add(MakeFolderEntry(f, false, source));
         }
         catch { }
     }
 
-    private static StartupEntry CreateFolderEntry(string file, bool enabled, string source)
+    private static StartupEntry MakeFolderEntry(string file, bool enabled, string source)
     {
         var name = Path.GetFileNameWithoutExtension(file);
         if (name.EndsWith(".lnk")) name = name[..^4];
@@ -116,8 +128,11 @@ public static class StartupService
     private static bool ToggleReg(StartupEntry entry)
     {
         var hive = entry.RegistrySource == "HKCU" ? Registry.CurrentUser : Registry.LocalMachine;
-        var fromPath = entry.IsEnabled ? RunKey : RunDisabledKey;
-        var toPath = entry.IsEnabled ? RunDisabledKey : RunKey;
+        var runKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+        var disabledKey = runKey + "_disabled";
+
+        var fromPath = entry.IsEnabled ? runKey : disabledKey;
+        var toPath = entry.IsEnabled ? disabledKey : runKey;
 
         try
         {
