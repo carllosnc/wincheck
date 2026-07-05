@@ -429,9 +429,11 @@
                                                         <TextBlock Text="{Binding Source}" FontSize="10"
                                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                                    VerticalAlignment="Center" Margin="0,0,8,0" />
-                                                        <Button Content="{Binding ToggleText}" FontSize="10"
-                                                                Tag="{Binding}" Click="OnToggleStartup"
-                                                                Width="64" Height="24" VerticalAlignment="Center" />
+                                                        <CheckBox IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                                                                  VerticalAlignment="Center"
+                                                                  Checked="OnToggleStartup"
+                                                                  Unchecked="OnToggleStartup"
+                                                                  Tag="{Binding}" />
                                                     </StackPanel>
                                                 </Grid>
                                             </Border>

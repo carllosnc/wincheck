@@ -15,10 +15,10 @@ public sealed partial class MainWindow
 
     public void OnToggleStartup(object sender, RoutedEventArgs e)
     {
-        if (sender is Button btn && btn.Tag is StartupEntry entry)
-        {
-            StartupService.ToggleStartupEntry(entry);
-            btn.Content = entry.ToggleText;
-        }
+        if (sender is not CheckBox cb || cb.Tag is not StartupEntry entry) return;
+
+        var success = StartupService.ToggleStartupEntry(entry);
+        if (!success)
+            cb.IsChecked = !cb.IsChecked;
     }
 }
