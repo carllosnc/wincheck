@@ -56,6 +56,38 @@ Single-window app with **4 views** switched via sidebar visibility toggling:
 
 Navigation handlers (`OnNavProcesses`, `OnNavInfo`, `OnNavDisk`, `OnNavCleanup`) toggle `Visibility` and swap sidebar button styles between `SidebarButtonStyle` / `SidebarButtonActiveStyle`.
 
+## Module Architecture (Mandatory)
+
+All code changes **MUST** follow this module structure. Never add new code directly to `MainWindow.xaml.cs` except for cross-cutting shell concerns (navigation wiring, keyboard, loading overlay).
+
+### Layer Rules
+
+| Layer | Directory | What belongs here | Max file size |
+|-------|-----------|-------------------|---------------|
+| **Models** | `Models/` | Data classes with `INotifyPropertyChanged`, DTOs, enums, value objects | ~100 lines |
+| **Services** | `Services/` | Business logic, P/Invoke, I/O, computation. Public static methods. **Never** reference UI types (XAML elements, controls) | ~300 lines |
+| **Views (partial)** | `UI/MainWindow.{Feature}.cs` | View-specific logic for one tab/feature. Can reference named XAML elements. Exactly one partial class per feature | ~300 lines |
+| **Shell** | `UI/MainWindow.xaml.cs` | Constructor, window setup, navigation wiring, keyboard hotkeys, `SetLoading()` | ~250 lines |
+| **Controls** | `UI/Controls/` | Reusable UI components (template selectors, converters, custom controls) | ~150 lines |
+
+### Adding a New Feature
+
+When adding a new tab/feature:
+
+1. **Model**: create `Models/NewThing.cs` with data classes
+2. **Service**: create `Services/NewThingService.cs` with pure logic (no UI references)
+3. **View partial**: create `UI/MainWindow.NewThing.cs` with event handlers and UI logic
+4. **XAML**: add the view Grid inside `MainWindow.xaml` (in the `Grid.Column="2"` content area)
+5. **Shell**: add sidebar button + navigation handler to `MainWindow.xaml.cs` (~4 lines)
+6. **App.xaml**: add any view-specific styles using `Style` with `x:Key`
+
+### What NOT to do
+- ❌ Put business logic inside `MainWindow.xaml.cs`
+- ❌ Reference `Microsoft.UI.Xaml` types from `Services/`
+- ❌ Create files with >500 lines
+- ❌ Duplicate P/Invoke declarations across files
+- ❌ Use `ItemsSource` for TreeView hierarchy (use `RootNodes`)
+
 ### Process Tree
 
 - Data flows: `ProcessCollector.CollectAsync()` → `List<WinProcess>` → `ProcessRow` (UI model) → grouped into `TreeNode` hierarchy
