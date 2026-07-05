@@ -392,6 +392,54 @@
                                 </Grid>
                             </StackPanel>
                         </Border>
+
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}" BorderThickness="1"
+                                CornerRadius="6" Padding="16" Margin="0,0,0,12">
+                            <StackPanel>
+                                <Grid>
+                                    <TextBlock Text="Startup Programs" FontSize="14" FontWeight="Bold"
+                                               Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
+                                    <Button Content="Scan" Click="OnScanStartup"
+                                            HorizontalAlignment="Right" VerticalAlignment="Center"
+                                            Width="70" Height="28" />
+                                </Grid>
+                                <ItemsControl x:Name="StartupList" Margin="0,8,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+                                                    BorderThickness="0,0,0,1" Padding="0,6" Margin="0">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
+                                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name}"
+                                                               FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Row="1" Grid.Column="0"
+                                                               FontSize="10" Foreground="{ThemeResource TextFillColorDisabledBrush}"
+                                                               TextTrimming="CharacterEllipsis" Margin="0,2,0,0">
+                                                        <Run Text="{Binding Command}" />
+                                                    </TextBlock>
+                                                    <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
+                                                                Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding Source}" FontSize="10"
+                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                        <Button Content="{Binding ToggleText}" FontSize="10"
+                                                                Tag="{Binding}" Click="OnToggleStartup"
+                                                                Width="64" Height="24" VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
 
