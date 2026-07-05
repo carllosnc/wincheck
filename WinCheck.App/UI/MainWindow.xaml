@@ -628,6 +628,7 @@
             <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                 <ProgressRing x:Name="LoadingRingOverlay"
                               Width="64" Height="64"
+                              Foreground="White"
                               IsActive="True" />
                 <TextBlock x:Name="LoadingOverlayText"
                            Text="Loading..."
