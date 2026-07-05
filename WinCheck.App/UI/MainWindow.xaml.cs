@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Security.Principal;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
@@ -856,6 +857,17 @@ public sealed partial class MainWindow : Window
     {
         if (!_cleanupAnalyzed) return;
 
+        var isAdmin = IsAdministrator();
+        var needsAdmin = _cleanupCategories.Any(c => c.IsChecked && c.SizeBytes > 0 && c.RequiresAdmin);
+
+        if (needsAdmin && !isAdmin)
+        {
+            CleanupStatus.Text = "Run as administrator to clean system paths";
+            ShowAdminCategories();
+            CleanupAnalyzeBtn.IsEnabled = true;
+            return;
+        }
+
         CleanupAnalyzeBtn.IsEnabled = false;
         CleanupRunBtn.IsEnabled = false;
         var totalFreed = 0L;
@@ -868,6 +880,7 @@ public sealed partial class MainWindow : Window
             cat.FilesDeleted = files;
             cat.BytesFreed = freed;
             cat.Status = files > 0 ? "Cleaned" : "Skipped";
+            if (files == 0 && cat.IsChecked) cat.Status = "Nothing to clean";
             cat.SizeBytes = 0;
             totalFreed += freed;
             totalFiles += files;
@@ -878,6 +891,12 @@ public sealed partial class MainWindow : Window
             : "Nothing was cleaned";
 
         CleanupAnalyzeBtn.IsEnabled = true;
+    }
+
+    private void ShowAdminCategories()
+    {
+        foreach (var cat in _cleanupCategories.Where(c => c.RequiresAdmin && c.SizeBytes > 0))
+            cat.Status = "Requires admin rights";
     }
 
     private static List<CleanupCategory> BuildCleanupCategories()
@@ -1005,39 +1024,115 @@ public sealed partial class MainWindow : Window
     {
         int files = 0;
         long freed = 0;
+        bool isAdmin = IsAdministrator();
 
         foreach (var path in cat.Paths)
         {
             try
             {
-                if (!Directory.Exists(path)) continue;
-
-                if (cat.Name == "Chrome Cache" || cat.Name == "Edge Cache")
-                {
-                    (files, freed) = CleanBrowserCache(path, "Cache", files, freed);
-                }
-                else if (cat.Name == "Firefox Cache")
-                {
-                    (files, freed) = CleanBrowserCache(path, "cache2", files, freed);
-                }
-                else if (cat.Name == "Recycle Bin")
+                if (cat.Name == "Recycle Bin")
                 {
                     var (size, items) = QueryRecycleBin();
                     EmptyRecycleBin();
                     files += (int)items;
                     freed += size;
                 }
+                else if (cat.Name == "Chrome Cache" || cat.Name == "Edge Cache")
+                {
+                    if (!Directory.Exists(path)) continue;
+                    foreach (var profile in Directory.EnumerateDirectories(path))
+                    {
+                        var cachePath = Path.Combine(profile, "Cache");
+                        if (Directory.Exists(cachePath))
+                            (files, freed) = DeleteContents(cachePath, files, freed);
+                    }
+                }
+                else if (cat.Name == "Firefox Cache")
+                {
+                    if (!Directory.Exists(path)) continue;
+                    foreach (var profile in Directory.EnumerateDirectories(path))
+                    {
+                        var cachePath = Path.Combine(profile, "cache2");
+                        if (Directory.Exists(cachePath))
+                            (files, freed) = DeleteContents(cachePath, files, freed);
+                    }
+                }
                 else
                 {
-                    var (f, b) = DeleteDirectoryContents(path);
-                    files += f;
-                    freed += b;
+                    if (!Directory.Exists(path)) continue;
+                    if (!isAdmin && cat.RequiresAdmin) continue;
+                    (files, freed) = DeleteContents(path, files, freed);
                 }
+            }
+            catch (UnauthorizedAccessException)
+            {
+                if (!isAdmin && cat.RequiresAdmin)
+                    cat.Status = "Requires admin rights";
+            }
+            catch (Exception ex)
+            {
+                cat.Status = $"Error: {ex.Message}";
+            }
+        }
+
+        return (files, freed);
+    }
+
+    private static (int files, long freed) DeleteContents(string path, int files, long freed)
+    {
+        var di = new DirectoryInfo(path);
+
+        foreach (var file in di.EnumerateFiles("*", SearchOption.AllDirectories))
+        {
+            try
+            {
+                if (file.IsReadOnly) file.Attributes = FileAttributes.Normal;
+                freed += file.Length;
+                file.Delete();
+                files++;
             }
             catch { }
         }
 
+        foreach (var dir in di.EnumerateDirectories("*", SearchOption.AllDirectories))
+        {
+            try
+            {
+                if ((dir.Attributes & FileAttributes.ReadOnly) != 0)
+                    dir.Attributes = FileAttributes.Normal;
+                Directory.Delete(dir.FullName, true);
+            }
+            catch { }
+        }
+
+        try
+        {
+            foreach (var file in di.EnumerateFiles("*"))
+            {
+                try { file.Delete(); files++; } catch { }
+            }
+
+            foreach (var dir in di.EnumerateDirectories("*"))
+            {
+                try
+                {
+                    if ((dir.Attributes & FileAttributes.ReadOnly) != 0)
+                        dir.Attributes = FileAttributes.Normal;
+                    Directory.Delete(dir.FullName, true);
+                }
+                catch { }
+            }
+        }
+        catch { }
+
         return (files, freed);
+    }
+
+    private static bool IsAdministrator()
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        var principal = new WindowsPrincipal(identity);
+        return principal.IsInRole(WindowsBuiltInRole.Administrator);
     }
 
     private static int CountCategoryFiles(CleanupCategory cat)
@@ -1055,54 +1150,6 @@ public sealed partial class MainWindow : Window
         }
         catch { }
         return 0;
-    }
-
-    private static (int files, long freed) CleanBrowserCache(string root, string cacheFolderName, int files, long freed)
-    {
-        try
-        {
-            foreach (var profile in Directory.EnumerateDirectories(root))
-            {
-                var cachePath = Path.Combine(profile, cacheFolderName);
-                if (Directory.Exists(cachePath))
-                {
-                    var (f, b) = DeleteDirectoryContents(cachePath);
-                    files += f;
-                    freed += b;
-                }
-            }
-        }
-        catch { }
-        return (files, freed);
-    }
-
-    private static (int files, long bytes) DeleteDirectoryContents(string path)
-    {
-        int files = 0;
-        long bytes = 0;
-
-        try
-        {
-            foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
-            {
-                try
-                {
-                    var fi = new FileInfo(file);
-                    bytes += fi.Length;
-                    fi.Delete();
-                    files++;
-                }
-                catch { }
-            }
-
-            foreach (var dir in Directory.EnumerateDirectories(path, "*", SearchOption.AllDirectories))
-            {
-                try { Directory.Delete(dir, true); } catch { }
-            }
-        }
-        catch { }
-
-        return (files, bytes);
     }
 
     [DllImport("shell32.dll")]
