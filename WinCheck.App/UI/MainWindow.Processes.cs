@@ -18,6 +18,7 @@ public sealed partial class MainWindow
     private DispatcherQueueTimer? _searchDebounce;
     private List<WinProcess> _allProcesses = [];
     private bool _autoRefresh = true;
+    private bool _isLoadingProcesses;
     private DateTime _lastUpdate = DateTime.Now;
     private long _prevIdleTime;
     private long _prevKernelTime;
@@ -48,9 +49,12 @@ public sealed partial class MainWindow
         public ulong ullAvailExtendedVirtual;
     }
 
-    private void LoadProcesses(bool isAuto = false)
+    private async Task LoadProcessesAsync(bool isAuto = false)
     {
-        var snapshot = new ProcessCollector().CollectAsync().GetAwaiter().GetResult();
+        if (_isLoadingProcesses) return;
+        _isLoadingProcesses = true;
+        var snapshot = await new ProcessCollector().CollectAsync();
+        _isLoadingProcesses = false;
         _allProcesses = snapshot.Processes;
 
         var filter = SearchBox.Text;
@@ -110,6 +114,7 @@ public sealed partial class MainWindow
         row.Description = p.Description;
         row.ExecutablePath = p.ExecutablePath;
         row.IsWindows = p.IsWindows;
+        row.IsCritical = p.Classification == ProcessClassification.SystemCritical;
         row.TagColor = CreateTagColor(p.IsWindows);
         row.TagGlyph = p.IsWindows ? "\uE8A9" : "\uE91B";
     }
@@ -364,7 +369,7 @@ public sealed partial class MainWindow
         if (_autoRefresh)
         {
             _timer?.Start();
-            if (!wasAuto) LoadProcesses();
+            if (!wasAuto) _ = LoadProcessesAsync();
         }
         else
         {
@@ -386,6 +391,7 @@ public sealed partial class MainWindow
             ExecutablePath = p.ExecutablePath,
             IsResponding = p.IsResponding,
             IsWindows = p.IsWindows,
+            IsCritical = p.Classification == ProcessClassification.SystemCritical,
             TagColor = CreateTagColor(p.IsWindows),
             TagGlyph = p.IsWindows ? "\uE8A9" : "\uE91B"
         };
@@ -394,6 +400,31 @@ public sealed partial class MainWindow
     public async void OnKillProcess(object sender, RoutedEventArgs e)
     {
         if (_selectedProcess == null) return;
+
+        var root = ((UIElement)Content).XamlRoot;
+
+        if (_selectedProcess.IsCritical)
+        {
+            var block = new ContentDialog
+            {
+                Title = "Critical system process",
+                Content = $"{_selectedProcess.Name} (PID {_selectedProcess.Id}) is a critical Windows process. Ending it will log you off or shut down Windows, so it cannot be ended from here.",
+                CloseButtonText = "OK",
+                XamlRoot = root
+            };
+            await block.ShowAsync();
+            return;
+        }
+
+        var confirm = new ContentDialog
+        {
+            Title = "End process",
+            Content = $"End \"{_selectedProcess.Name}\" (PID {_selectedProcess.Id})? Unsaved work will be lost.",
+            PrimaryButtonText = "End process",
+            CloseButtonText = "Cancel",
+            XamlRoot = root
+        };
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
 
         SetLoading($"Killing {_selectedProcess.Name}...", true);
         KillBtn.IsEnabled = false;
@@ -431,7 +462,7 @@ public sealed partial class MainWindow
         await dialog.ShowAsync();
     }
 
-    public void OnRefresh(object sender, RoutedEventArgs e) => LoadProcesses();
+    public async void OnRefresh(object sender, RoutedEventArgs e) => await LoadProcessesAsync();
     public void OnToggleAutoChanged(object sender, RoutedEventArgs e) => ToggleAutoRefresh();
 
     public void OnProcessItemInvoked(TreeView sender, TreeViewItemInvokedEventArgs args)

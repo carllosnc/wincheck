@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -32,12 +33,12 @@ public sealed partial class MainWindow : Window
         _timer = queue.CreateTimer();
         _timer.Interval = TimeSpan.FromSeconds(3);
         _timer.IsRepeating = true;
-        _timer.Tick += (_, _) => LoadProcesses(isAuto: true);
+        _timer.Tick += (_, _) => _ = LoadProcessesAsync(isAuto: true);
 
         _searchDebounce = queue.CreateTimer();
         _searchDebounce.Interval = TimeSpan.FromMilliseconds(200);
         _searchDebounce.IsRepeating = false;
-        _searchDebounce.Tick += (_, _) => LoadProcesses();
+        _searchDebounce.Tick += (_, _) => _ = LoadProcessesAsync();
 
         Activated += OnActivated;
         if (Content is UIElement ui)
@@ -45,14 +46,17 @@ public sealed partial class MainWindow : Window
 
         CollectHardwareInfo();
         PopulateDrives();
-        StartupList.ItemsSource = StartupService.ScanStartupEntries();
+
+        var isAdmin = CleanupService.IsAdministrator();
+        AdminBadge.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
+        RestartAdminBtn.Visibility = isAdmin ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void OnActivated(object sender, WindowActivatedEventArgs e)
     {
         Activated -= OnActivated;
         SetWindowSize(1100, 700);
-        LoadProcesses();
+        _ = LoadProcessesAsync();
         AutoToggle.IsChecked = true;
         _timer?.Start();
         NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
@@ -74,7 +78,7 @@ public sealed partial class MainWindow : Window
     {
         if (e.Key == Windows.System.VirtualKey.F5)
         {
-            LoadProcesses();
+            _ = LoadProcessesAsync();
             e.Handled = true;
         }
         else if (e.Key == Windows.System.VirtualKey.Space)
@@ -95,6 +99,19 @@ public sealed partial class MainWindow : Window
             ProcessTree.Focus(FocusState.Programmatic);
             e.Handled = true;
         }
+    }
+
+    public void OnRestartAsAdmin(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var exePath = Environment.ProcessPath;
+            if (exePath == null) return;
+            var psi = new ProcessStartInfo(exePath) { Verb = "runas", UseShellExecute = true };
+            Process.Start(psi);
+            Close();
+        }
+        catch { }
     }
 
     private void SetLoading(string? message, bool isLoading)
@@ -122,8 +139,10 @@ public sealed partial class MainWindow : Window
         InfoView.Visibility = Visibility.Collapsed;
         DiskView.Visibility = Visibility.Collapsed;
         CleanupView.Visibility = Visibility.Collapsed;
+        StartupView.Visibility = Visibility.Collapsed;
         NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
         NavInfo.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavStartup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
     }
@@ -134,13 +153,28 @@ public sealed partial class MainWindow : Window
         InfoView.Visibility = Visibility.Visible;
         DiskView.Visibility = Visibility.Collapsed;
         CleanupView.Visibility = Visibility.Collapsed;
+        StartupView.Visibility = Visibility.Collapsed;
         NavInfo.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
         NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavStartup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         CollectHardwareInfo();
-        var entries = StartupService.ScanStartupEntries();
-        StartupList.ItemsSource = entries;
+    }
+
+    public async void OnNavStartup(object sender, RoutedEventArgs e)
+    {
+        ProcessesView.Visibility = Visibility.Collapsed;
+        InfoView.Visibility = Visibility.Collapsed;
+        DiskView.Visibility = Visibility.Collapsed;
+        CleanupView.Visibility = Visibility.Collapsed;
+        StartupView.Visibility = Visibility.Visible;
+        NavStartup.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
+        NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavInfo.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        await ScanStartupAsync();
     }
 
     private void CollectHardwareInfo()
@@ -222,6 +256,7 @@ public class ProcessRow : INotifyPropertyChanged
     public bool IsResponding { get => _isResponding; set { _isResponding = value; Notify(); } }
     private bool _isWindows;
     public bool IsWindows { get => _isWindows; set { _isWindows = value; Notify(); } }
+    public bool IsCritical { get; set; }
     private SolidColorBrush _tagColor = new(Colors.Gray);
     public SolidColorBrush TagColor { get => _tagColor; set { _tagColor = value; Notify(); } }
     private string _tagGlyph = "\uE8A9";

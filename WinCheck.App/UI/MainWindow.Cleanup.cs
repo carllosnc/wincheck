@@ -20,9 +20,11 @@ public sealed partial class MainWindow
         InfoView.Visibility = Visibility.Collapsed;
         DiskView.Visibility = Visibility.Collapsed;
         CleanupView.Visibility = Visibility.Visible;
+        StartupView.Visibility = Visibility.Collapsed;
         NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
         NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavInfo.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavStartup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
     }
 
@@ -81,6 +83,24 @@ public sealed partial class MainWindow
             CleanupStatus.Text = "Run as administrator to clean system paths";
             ShowAdminCategories();
             CleanupAnalyzeBtn.IsEnabled = true;
+            SetLoading(null, false);
+            return;
+        }
+
+        var toClean = _cleanupCategories.Where(c => c.IsChecked && c.SizeBytes > 0).ToList();
+        var hasRecycle = toClean.Any(c => c.Name == "Recycle Bin");
+        var confirm = new ContentDialog
+        {
+            Title = "Clean selected items?",
+            Content = hasRecycle
+                ? $"This will permanently delete files in {toClean.Count} categor{(toClean.Count == 1 ? "y" : "ies")}, including the Recycle Bin. This cannot be undone."
+                : $"This will permanently delete files in {toClean.Count} categor{(toClean.Count == 1 ? "y" : "ies")}. This cannot be undone.",
+            PrimaryButtonText = "Clean",
+            CloseButtonText = "Cancel",
+            XamlRoot = ((UIElement)Content).XamlRoot
+        };
+        if (await confirm.ShowAsync() != ContentDialogResult.Primary)
+        {
             SetLoading(null, false);
             return;
         }

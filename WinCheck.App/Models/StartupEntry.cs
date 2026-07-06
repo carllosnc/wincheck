@@ -6,6 +6,8 @@ using WinCheck.Services;
 
 namespace WinCheck.Models;
 
+public enum StartupEntryType { Registry, Folder, ScheduledTask, Service }
+
 public class StartupEntry : INotifyPropertyChanged
 {
     private string _name = "";
@@ -13,21 +15,48 @@ public class StartupEntry : INotifyPropertyChanged
     private string _source = "";
     private bool _isEnabled;
     private string _status = "";
+    private string _description = "";
+    private StartupEntryType _entryType;
 
     public string Name { get => _name; set { _name = value; Notify(); } }
-    public string Command { get => _command; set { _command = value; Notify(); } }
+    public string Command { get => _command; set { _command = value; _iconSource = null; Notify(); Notify(nameof(IconSource)); } }
     public string Source { get => _source; set { _source = value; Notify(); } }
     public string RegistrySource { get; set; } = "";
+    public string RegistryPath { get; set; } = "";
     public string ValueName { get; set; } = "";
 
+    public string Description
+    {
+        get => _description;
+        set { _description = value; Notify(); }
+    }
+
+    public StartupEntryType EntryType
+    {
+        get => _entryType;
+        set { _entryType = value; Notify(); Notify(nameof(TypeLabel)); }
+    }
+
+    public string TypeLabel => EntryType switch
+    {
+        StartupEntryType.Registry => "Registry",
+        StartupEntryType.Folder => "Startup Folder",
+        StartupEntryType.ScheduledTask => "Scheduled Task",
+        StartupEntryType.Service => "Service",
+        _ => ""
+    };
+
+    private ImageSource? _iconSource;
     public ImageSource? IconSource
     {
         get
         {
+            if (_iconSource is not null) return _iconSource;
             if (_command.Length == 0) return null;
             var exe = ExtractExePath(_command);
             if (string.IsNullOrEmpty(exe) || !File.Exists(exe)) return null;
-            return IconService.IconFromBytes(IconService.GetIconBytes(exe));
+            _iconSource = IconService.IconFromBytes(IconService.GetIconBytes(exe));
+            return _iconSource;
         }
     }
 
@@ -43,7 +72,7 @@ public class StartupEntry : INotifyPropertyChanged
         set { _status = value; Notify(); }
     }
 
-    private static string ExtractExePath(string command)
+    public static string ExtractExePath(string command)
     {
         command = command.Trim();
         if (command.StartsWith('"'))

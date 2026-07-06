@@ -29,6 +29,9 @@
                     <Button x:Name="NavInfo" Content="System Info" Click="OnNavInfo"
                             HorizontalAlignment="Stretch" Height="36" Margin="0,0,0,4"
                             Style="{ThemeResource SidebarButtonStyle}" />
+                    <Button x:Name="NavStartup" Content="Startup" Click="OnNavStartup"
+                            HorizontalAlignment="Stretch" Height="36" Margin="0,0,0,4"
+                            Style="{ThemeResource SidebarButtonStyle}" />
                     <Button x:Name="NavDisk" Content="Disk" Click="OnNavDisk"
                             HorizontalAlignment="Stretch" Height="36" Margin="0,0,0,4"
                             Style="{ThemeResource SidebarButtonStyle}" />
@@ -392,62 +395,97 @@
                                 </Grid>
                             </StackPanel>
                         </Border>
-
-                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                                BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}" BorderThickness="1"
-                                CornerRadius="6" Padding="16" Margin="0,0,0,12">
-                            <StackPanel>
-                                <Grid>
-                                    <TextBlock Text="Startup Programs" FontSize="14" FontWeight="Bold"
-                                               Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
-                                    <Button Content="Scan" Click="OnScanStartup"
-                                            HorizontalAlignment="Right" VerticalAlignment="Center"
-                                            Width="70" Height="28" />
-                                </Grid>
-                                <ItemsControl x:Name="StartupList" Margin="0,8,0,0">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
-                                                    BorderThickness="0,0,0,1" Padding="0,6" Margin="0">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
-                                                    </Grid.ColumnDefinitions>
-                                                    <Grid.RowDefinitions>
-                                                        <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
-                                                    </Grid.RowDefinitions>
-                                                    <Image Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
-                                                           Source="{Binding IconSource}"
-                                                           Width="20" Height="20" Stretch="Uniform"
-                                                           VerticalAlignment="Center" Margin="0,0,8,0" />
-                                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Name}"
-                                                               FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-                                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                                    <TextBlock Grid.Row="1" Grid.Column="1"
-                                                               FontSize="10" Foreground="{ThemeResource TextFillColorDisabledBrush}"
-                                                               TextTrimming="CharacterEllipsis" Margin="0,2,0,0">
-                                                        <Run Text="{Binding Command}" />
-                                                    </TextBlock>
-                                                    <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="2"
-                                                                Orientation="Horizontal" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding Source}" FontSize="10"
-                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                                                   VerticalAlignment="Center" Margin="0,0,8,0" />
-                                                        <CheckBox IsChecked="{Binding IsEnabled, Mode=OneWay}"
-                                                                  VerticalAlignment="Center"
-                                                                  Checked="OnToggleStartup"
-                                                                  Unchecked="OnToggleStartup"
-                                                                  Tag="{Binding}" />
-                                                    </StackPanel>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </StackPanel>
-                        </Border>
                     </StackPanel>
                 </ScrollViewer>
+
+                <Grid x:Name="StartupView" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}" BorderThickness="1"
+                            CornerRadius="6" Padding="12" Margin="0,0,0,12">
+                        <Grid>
+                            <TextBlock Text="Startup Programs" FontSize="14" FontWeight="Bold"
+                                       Foreground="{ThemeResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <ComboBox x:Name="StartupFilter" SelectedIndex="0" Width="160"
+                                          FontSize="12" Margin="0,0,8,0"
+                                          SelectionChanged="OnStartupFilterChanged">
+                                    <ComboBoxItem Content="All" Tag="All" />
+                                    <ComboBoxItem Content="Registry" Tag="Registry" />
+                                    <ComboBoxItem Content="Startup Folder" Tag="StartupFolder" />
+                                    <ComboBoxItem Content="Scheduled Tasks" Tag="ScheduledTask" />
+                                    <ComboBoxItem Content="Services" Tag="Service" />
+                                </ComboBox>
+                                <Button Content="Scan" Click="OnScanStartup"
+                                        Width="70" Height="28" />
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}" BorderThickness="1"
+                            CornerRadius="6" Padding="12">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl x:Name="StartupList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}"
+                                                BorderThickness="0,0,0,1" Padding="0,6" Margin="0">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                                </Grid.RowDefinitions>
+                                                <Image Grid.Row="0" Grid.Column="0"
+                                                       Source="{Binding IconSource}"
+                                                       Width="20" Height="20" Stretch="Uniform"
+                                                       VerticalAlignment="Top" Margin="0,2,8,0" />
+                                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal"
+                                                            VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}"
+                                                               FontSize="12" Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                    <Border CornerRadius="3" Padding="4,1" Margin="8,0,0,0"
+                                                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                            VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding TypeLabel}" FontSize="9"
+                                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    </Border>
+                                                </StackPanel>
+                                                <TextBlock Grid.Row="1" Grid.Column="1"
+                                                           FontSize="10" Foreground="{ThemeResource TextFillColorDisabledBrush}"
+                                                           TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
+                                                           Text="{Binding Command}" />
+                                                <TextBlock Grid.Row="2" Grid.Column="1"
+                                                           FontSize="10" Foreground="{ThemeResource TextFillColorDisabledBrush}"
+                                                           TextTrimming="CharacterEllipsis" Margin="0,1,0,0"
+                                                           Text="{Binding Description}"
+                                                           Visibility="{Binding Description, Converter={StaticResource StringToVisibilityConverter}}" />
+                                                <StackPanel Grid.Row="0" Grid.Column="2"
+                                                            Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Source}" FontSize="10"
+                                                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                               VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                    <CheckBox IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                                                              VerticalAlignment="Center"
+                                                              Checked="OnToggleStartup"
+                                                              Unchecked="OnToggleStartup"
+                                                              Tag="{Binding}" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
 
                 <Grid x:Name="DiskView" Visibility="Collapsed">
                     <Grid.RowDefinitions>
@@ -665,6 +703,15 @@
                                VerticalAlignment="Center" Text="--" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border x:Name="AdminBadge" Background="{ThemeResource AccentFillColorDefaultBrush}"
+                            CornerRadius="3" Padding="6,2" Margin="0,0,8,0" VerticalAlignment="Center"
+                            Visibility="Collapsed">
+                        <TextBlock x:Name="AdminBadgeText" FontSize="11"
+                                   Foreground="White" Text="Administrator" />
+                    </Border>
+                    <Button x:Name="RestartAdminBtn" Content="Restart as Admin"
+                            Click="OnRestartAsAdmin"
+                            VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12" />
                     <CheckBox x:Name="AutoToggle" Content="Live Reload"
                               VerticalAlignment="Center" Margin="0,0,12,0"
                               Checked="OnToggleAutoChanged" Unchecked="OnToggleAutoChanged" />

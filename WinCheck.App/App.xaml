@@ -7,6 +7,9 @@
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
 
+            <controls:StringToVisibilityConverter x:Key="StringToVisibilityConverter"
+                xmlns:controls="using:WinCheck.UI.Controls" />
+
             <SolidColorBrush x:Key="WindowBgBrush" Color="{ThemeResource SolidBackgroundFillColorBase}" />
             <SolidColorBrush x:Key="CardBgBrush" Color="{ThemeResource CardBackgroundFillColorDefault}" />
             <SolidColorBrush x:Key="CardBorderBrush" Color="{ThemeResource SurfaceStrokeColorDefault}" />
