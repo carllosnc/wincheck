@@ -21,11 +21,13 @@ public sealed partial class MainWindow
         DiskView.Visibility = Visibility.Collapsed;
         CleanupView.Visibility = Visibility.Visible;
         StartupView.Visibility = Visibility.Collapsed;
+        PerformanceView.Visibility = Visibility.Collapsed;
         NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
         NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavInfo.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavStartup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavPerformance.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
     }
 
     public void OnCleanupToggleDetails(object sender, RoutedEventArgs e)

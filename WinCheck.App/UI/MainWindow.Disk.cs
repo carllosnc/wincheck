@@ -41,11 +41,13 @@ public sealed partial class MainWindow
         DiskView.Visibility = Visibility.Visible;
         CleanupView.Visibility = Visibility.Collapsed;
         StartupView.Visibility = Visibility.Collapsed;
+        PerformanceView.Visibility = Visibility.Collapsed;
         NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
         NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavInfo.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavStartup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavPerformance.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
     }
 
     public void OnDriveChanged(object sender, SelectionChangedEventArgs e)

@@ -140,11 +140,13 @@ public sealed partial class MainWindow : Window
         DiskView.Visibility = Visibility.Collapsed;
         CleanupView.Visibility = Visibility.Collapsed;
         StartupView.Visibility = Visibility.Collapsed;
+        PerformanceView.Visibility = Visibility.Collapsed;
         NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
         NavInfo.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavStartup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavPerformance.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
     }
 
     public void OnNavInfo(object sender, RoutedEventArgs e)
@@ -154,11 +156,13 @@ public sealed partial class MainWindow : Window
         DiskView.Visibility = Visibility.Collapsed;
         CleanupView.Visibility = Visibility.Collapsed;
         StartupView.Visibility = Visibility.Collapsed;
+        PerformanceView.Visibility = Visibility.Collapsed;
         NavInfo.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
         NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavStartup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavPerformance.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         CollectHardwareInfo();
     }
 
@@ -169,11 +173,13 @@ public sealed partial class MainWindow : Window
         DiskView.Visibility = Visibility.Collapsed;
         CleanupView.Visibility = Visibility.Collapsed;
         StartupView.Visibility = Visibility.Visible;
+        PerformanceView.Visibility = Visibility.Collapsed;
         NavStartup.Style = (Style)Application.Current.Resources["SidebarButtonActiveStyle"];
         NavProcesses.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavInfo.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavDisk.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         NavCleanup.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
+        NavPerformance.Style = (Style)Application.Current.Resources["SidebarButtonStyle"];
         await ScanStartupAsync();
     }
 
