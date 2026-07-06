@@ -50,6 +50,7 @@ public sealed partial class MainWindow
                 "StartupFolder" => entries.Where(x => x.EntryType == StartupEntryType.Folder),
                 "ScheduledTask" => entries.Where(x => x.EntryType == StartupEntryType.ScheduledTask),
                 "Service" => entries.Where(x => x.EntryType == StartupEntryType.Service),
+                "StoreApp" => entries.Where(x => x.EntryType == StartupEntryType.StoreApp),
                 _ => entries
             };
         }

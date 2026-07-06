@@ -426,6 +426,7 @@
                                     <ComboBoxItem Content="Startup Folder" Tag="StartupFolder" />
                                     <ComboBoxItem Content="Scheduled Tasks" Tag="ScheduledTask" />
                                     <ComboBoxItem Content="Services" Tag="Service" />
+                                    <ComboBoxItem Content="Store Apps" Tag="StoreApp" />
                                 </ComboBox>
                                 <Button Content="Scan" Click="OnScanStartup"
                                         Width="70" Height="28" />

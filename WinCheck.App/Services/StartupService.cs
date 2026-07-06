@@ -39,6 +39,7 @@ public static class StartupService
 
         ScanServices(entries);
         ScanScheduledTasks(entries);
+        ScanStoreApps(entries);
 
         return entries;
     }
@@ -228,6 +229,7 @@ public static class StartupService
             StartupEntryType.Registry => ToggleReg(entry),
             StartupEntryType.Service => ToggleService(entry),
             StartupEntryType.ScheduledTask => ToggleScheduledTask(entry),
+            StartupEntryType.StoreApp => ToggleStoreApp(entry),
             _ => false
         };
     }
@@ -323,6 +325,108 @@ public static class StartupService
             entry.Status = "Failed";
             return false;
         }
+        catch { entry.Status = "Failed"; return false; }
+    }
+
+    private static void ScanStoreApps(List<StartupEntry> list)
+    {
+        try
+        {
+            var pm = new Windows.Management.Deployment.PackageManager();
+            var packages = pm.FindPackagesForUser("");
+
+            foreach (var pkg in packages)
+            {
+                try
+                {
+                    var installPath = pkg.InstalledLocation.Path;
+                    if (string.IsNullOrEmpty(installPath)) continue;
+                    var manifestPath = Path.Combine(installPath, "AppxManifest.xml");
+                    if (!File.Exists(manifestPath)) continue;
+
+                    ParseStoreManifest(manifestPath, installPath, pkg.Id.Name, list);
+                }
+                catch { }
+            }
+        }
+        catch { }
+    }
+
+    private static void ParseStoreManifest(string manifestPath, string installPath, string packageName, List<StartupEntry> list)
+    {
+        try
+        {
+            var doc = new XmlDocument();
+            doc.Load(manifestPath);
+
+            var nsmgr = new XmlNamespaceManager(doc.NameTable);
+            var exts = doc.SelectNodes("//*[local-name()='Extension' and @Category='windows.startupTask']", nsmgr);
+            if (exts == null) return;
+
+            foreach (XmlNode ext in exts)
+            {
+                var executable = ext.Attributes?["Executable"]?.Value ?? "";
+                var taskNode = ext.SelectSingleNode("*[local-name()='StartupTask']", nsmgr);
+                if (taskNode == null) continue;
+
+                var taskId = taskNode.Attributes?["TaskId"]?.Value ?? "";
+                var displayName = taskNode.Attributes?["DisplayName"]?.Value ?? packageName;
+                if (string.IsNullOrEmpty(displayName) || displayName.StartsWith("ms-resource:", StringComparison.OrdinalIgnoreCase))
+                    displayName = packageName;
+                var manifestEnabled = taskNode.Attributes?["Enabled"]?.Value ?? "true";
+                if (string.IsNullOrEmpty(taskId)) continue;
+
+                var command = string.IsNullOrEmpty(executable)
+                    ? installPath
+                    : Path.Combine(installPath, executable);
+
+                var isEnabled = GetStoreTaskEnabled(taskId, string.Equals(manifestEnabled, "true", StringComparison.OrdinalIgnoreCase));
+
+                list.Add(new StartupEntry
+                {
+                    Name = displayName,
+                    Command = command,
+                    Source = "Store App",
+                    IsEnabled = isEnabled,
+                    EntryType = StartupEntryType.StoreApp,
+                    RegistrySource = "StoreApp",
+                    ValueName = taskId,
+                    Description = packageName
+                });
+            }
+        }
+        catch { }
+    }
+
+    private static bool GetStoreTaskEnabled(string taskId, bool manifestDefault)
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\StartupApprove\StartupTask");
+            if (key?.GetValue(taskId) is byte[] bytes && bytes.Length > 0)
+                return bytes[0] == 2;
+        }
+        catch { }
+        return manifestDefault;
+    }
+
+    private static bool ToggleStoreApp(StartupEntry entry)
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.CreateSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\StartupApprove\StartupTask", writable: true);
+            if (key == null) return false;
+
+            var data = new byte[12];
+            data[0] = (byte)(entry.IsEnabled ? 3 : 2);
+            key.SetValue(entry.ValueName, data, RegistryValueKind.Binary);
+
+            entry.IsEnabled = !entry.IsEnabled;
+            return true;
+        }
+        catch (UnauthorizedAccessException) { entry.Status = "Admin required"; return false; }
         catch { entry.Status = "Failed"; return false; }
     }
 }

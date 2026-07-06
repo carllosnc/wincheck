@@ -6,7 +6,7 @@ using WinCheck.Services;
 
 namespace WinCheck.Models;
 
-public enum StartupEntryType { Registry, Folder, ScheduledTask, Service }
+public enum StartupEntryType { Registry, Folder, ScheduledTask, Service, StoreApp }
 
 public class StartupEntry : INotifyPropertyChanged
 {
@@ -43,6 +43,7 @@ public class StartupEntry : INotifyPropertyChanged
         StartupEntryType.Folder => "Startup Folder",
         StartupEntryType.ScheduledTask => "Scheduled Task",
         StartupEntryType.Service => "Service",
+        StartupEntryType.StoreApp => "Store App",
         _ => ""
     };
 
