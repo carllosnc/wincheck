@@ -23,6 +23,11 @@ public sealed partial class MainWindow
         ApplyStartupFilter();
     }
 
+    public void OnStartupSearchChanged(object sender, TextChangedEventArgs e)
+    {
+        ApplyStartupFilter();
+    }
+
     private async Task ScanStartupAsync()
     {
         SetLoading("Scanning startup entries...", isLoading: true);
@@ -35,22 +40,31 @@ public sealed partial class MainWindow
     {
         if (StartupList is null) return;
 
-        if (StartupFilter?.SelectedItem is not ComboBoxItem item || item.Tag is not string tag)
+        IEnumerable<StartupEntry> entries = _allStartupEntries;
+
+        if (StartupFilter?.SelectedItem is ComboBoxItem item && item.Tag is string tag)
         {
-            StartupList.ItemsSource = _allStartupEntries;
-            return;
+            entries = tag switch
+            {
+                "Registry" => entries.Where(x => x.EntryType == StartupEntryType.Registry),
+                "StartupFolder" => entries.Where(x => x.EntryType == StartupEntryType.Folder),
+                "ScheduledTask" => entries.Where(x => x.EntryType == StartupEntryType.ScheduledTask),
+                "Service" => entries.Where(x => x.EntryType == StartupEntryType.Service),
+                _ => entries
+            };
         }
 
-        var filtered = tag switch
+        var search = StartupSearchBox?.Text?.Trim() ?? "";
+        if (search.Length > 0)
         {
-            "Registry" => _allStartupEntries.Where(x => x.EntryType == StartupEntryType.Registry).ToList(),
-            "StartupFolder" => _allStartupEntries.Where(x => x.EntryType == StartupEntryType.Folder).ToList(),
-            "ScheduledTask" => _allStartupEntries.Where(x => x.EntryType == StartupEntryType.ScheduledTask).ToList(),
-            "Service" => _allStartupEntries.Where(x => x.EntryType == StartupEntryType.Service).ToList(),
-            _ => _allStartupEntries
-        };
+            entries = entries.Where(x =>
+                x.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                x.Command.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                x.Source.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                x.Description.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
 
-        StartupList.ItemsSource = filtered;
+        StartupList.ItemsSource = entries.ToList();
     }
 
     public void OnToggleStartup(object sender, RoutedEventArgs e)
