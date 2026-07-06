@@ -129,6 +129,9 @@ public static class StartupService
                     var imagePath = svc.GetValue("ImagePath")?.ToString() ?? "";
                     var description = svc.GetValue("Description")?.ToString() ?? "";
 
+                    if (IsWindowsService(imagePath))
+                        continue;
+
                     list.Add(new StartupEntry
                     {
                         Name = displayName,
@@ -219,6 +222,15 @@ public static class StartupService
             }
         }
         catch { }
+    }
+
+    private static bool IsWindowsService(string imagePath)
+    {
+        if (string.IsNullOrWhiteSpace(imagePath))
+            return true;
+
+        var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        return imagePath.StartsWith(windowsDir, StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool ToggleStartupEntry(StartupEntry entry)

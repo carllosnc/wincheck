@@ -53,12 +53,28 @@ public class StartupEntry : INotifyPropertyChanged
         get
         {
             if (_iconSource is not null) return _iconSource;
-            if (_command.Length == 0) return null;
+            if (_command.Length == 0) return GetGenericIcon();
             var exe = ExtractExePath(_command);
-            if (string.IsNullOrEmpty(exe) || !File.Exists(exe)) return null;
+            if (string.IsNullOrEmpty(exe) || !File.Exists(exe)) return GetGenericIcon();
             _iconSource = IconService.IconFromBytes(IconService.GetIconBytes(exe));
-            return _iconSource;
+            return _iconSource ?? GetGenericIcon();
         }
+    }
+
+    private static ImageSource? _genericIcon;
+    private static ImageSource GetGenericIcon()
+    {
+        if (_genericIcon is not null) return _genericIcon;
+        try
+        {
+            using var icon = System.Drawing.SystemIcons.Application;
+            using var bmp = icon.ToBitmap();
+            using var ms = new MemoryStream();
+            bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+            _genericIcon = IconService.IconFromBytes(ms.ToArray());
+        }
+        catch { }
+        return _genericIcon!;
     }
 
     public bool IsEnabled
